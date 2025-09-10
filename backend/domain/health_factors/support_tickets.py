@@ -7,7 +7,7 @@ from typing import List
 from datetime import datetime, timedelta
 
 from domain.models import Customer, CustomerEvent, FactorScore
-from domain.health_factors.base import HealthFactor
+from domain.health_factors.base_factor import HealthFactor
 
 
 class SupportTicketsFactor(HealthFactor):
