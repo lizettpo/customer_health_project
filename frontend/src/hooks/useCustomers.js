@@ -10,7 +10,7 @@ export const useCustomers = (params) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await CustomerService.getCustomers(params);
+      const data = await CustomerService.getCustomers();
       setCustomers(data.data);
     } catch (err) {
       setError(

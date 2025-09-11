@@ -27,14 +27,11 @@ class CustomerService:
     
     def get_customers_with_health_scores(
         self,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
+
         health_status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get customers with their latest health scores"""
         return self.customer_controller.get_customers_with_health_scores(
-            limit=limit,
-            offset=offset,
             health_status=health_status
         )
     

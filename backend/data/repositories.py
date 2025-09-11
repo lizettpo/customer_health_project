@@ -25,14 +25,10 @@ class CustomerRepository:
             return None
         return self._to_domain_model(db_customer)
     
-    def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[Customer]:
+    def get_all(self) -> List[Customer]:
         """Get all customers with pagination"""
         query = self.db.query(CustomerModel)
-        
-        if offset:
-            query = query.offset(offset)
-        if limit:
-            query = query.limit(limit)
+     
         
         db_customers = query.all()
         return [self._to_domain_model(customer) for customer in db_customers]

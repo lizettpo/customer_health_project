@@ -1,12 +1,12 @@
-import api from './api';
+import api from "./api";
 
 export class CustomerService {
   static async getCustomers(params) {
     try {
-      const response = await api.get('/api/customers', { params });
+      const response = await api.get("/api/customers", { params });
       return response.data;
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error("Error fetching customers:", error);
       throw error;
     }
   }
@@ -23,7 +23,10 @@ export class CustomerService {
 
   static async recordCustomerEvent(customerId, eventData) {
     try {
-      const response = await api.post(`/api/customers/${customerId}/events`, eventData);
+      const response = await api.post(
+        `/api/customers/${customerId}/events`,
+        eventData
+      );
       return response.data;
     } catch (error) {
       console.error(`Error recording event for customer ${customerId}:`, error);
@@ -34,7 +37,7 @@ export class CustomerService {
   static async getCustomerEvents(customerId, days = 90) {
     try {
       const response = await api.get(`/api/customers/${customerId}/events`, {
-        params: { days }
+        params: { days },
       });
       return response.data;
     } catch (error) {

@@ -139,8 +139,6 @@ async def root():
 
 @app.get("/api/customers", response_model=List[CustomerListResponse])
 async def get_customers(
-    limit: Optional[int] = 100,
-    offset: Optional[int] = 0,
     health_status: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -148,8 +146,6 @@ async def get_customers(
     try:
         customer_service = CustomerService(db)
         customers = customer_service.get_customers_with_health_scores(
-            limit=limit,
-            offset=offset,
             health_status=health_status
         )
         return JSONResponse(content={"success": True, "data": customers})

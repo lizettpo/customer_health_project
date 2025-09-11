@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
-import { useCustomers } from '../../hooks';
-import { formatDate, formatScore } from '../../utils/formatters';
-import { getHealthStatusColor, formatHealthStatus } from '../../utils/healthScore';
-
+import React, { useState } from "react";
+import { useCustomers } from "../../hooks";
+import { formatDate, formatScore } from "../../utils/formatters";
+import {
+  getHealthStatusColor,
+  formatHealthStatus,
+} from "../../utils/healthScore";
 
 const CustomersList = ({ onCustomerSelect }) => {
-  const [healthStatusFilter, setHealthStatusFilter] = useState('all');
+  const [healthStatusFilter, setHealthStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
   const limit = 10;
 
   const { customers, loading, error } = useCustomers({
-    limit,
-    offset: page * limit,
-    health_status: healthStatusFilter === 'all' ? undefined : healthStatusFilter,
+    health_status:
+      healthStatusFilter === "all" ? undefined : healthStatusFilter,
   });
 
   if (loading) {
@@ -45,7 +46,7 @@ const CustomersList = ({ onCustomerSelect }) => {
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900">Customers</h3>
-          
+
           <select
             value={healthStatusFilter}
             onChange={(e) => {
@@ -72,7 +73,7 @@ const CustomersList = ({ onCustomerSelect }) => {
             <div
               key={customer.id}
               className={`p-6 hover:bg-gray-50 transition-colors ${
-                onCustomerSelect ? 'cursor-pointer' : ''
+                onCustomerSelect ? "cursor-pointer" : ""
               }`}
               onClick={() => onCustomerSelect?.(customer)}
             >
@@ -92,18 +93,29 @@ const CustomersList = ({ onCustomerSelect }) => {
                     <>
                       <div
                         className="text-2xl font-bold mb-1"
-                        style={{ color: getHealthStatusColor(customer.health_status || 'critical') }}
+                        style={{
+                          color: getHealthStatusColor(
+                            customer.health_status || "critical"
+                          ),
+                        }}
                       >
                         {formatScore(customer.health_score)}
                       </div>
                       <div
                         className="text-sm font-medium px-2 py-1 rounded-full"
                         style={{
-                          backgroundColor: getHealthStatusColor(customer.health_status || 'critical') + '20',
-                          color: getHealthStatusColor(customer.health_status || 'critical'),
+                          backgroundColor:
+                            getHealthStatusColor(
+                              customer.health_status || "critical"
+                            ) + "20",
+                          color: getHealthStatusColor(
+                            customer.health_status || "critical"
+                          ),
                         }}
                       >
-                        {formatHealthStatus(customer.health_status || 'critical')}
+                        {formatHealthStatus(
+                          customer.health_status || "critical"
+                        )}
                       </div>
                     </>
                   ) : (
@@ -125,11 +137,9 @@ const CustomersList = ({ onCustomerSelect }) => {
           >
             Previous
           </button>
-          
-          <span className="text-sm text-gray-600">
-            Page {page + 1}
-          </span>
-          
+
+          <span className="text-sm text-gray-600">Page {page + 1}</span>
+
           <button
             onClick={() => setPage(page + 1)}
             disabled={customers.length < limit}

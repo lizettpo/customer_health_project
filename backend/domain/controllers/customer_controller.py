@@ -3,6 +3,7 @@ Controller Layer - Customer Controller
 Loads data into memory and coordinates it (not just calling DB every time)
 """
 
+from domain.controllers.health_score_controller import HealthScoreController
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -34,8 +35,6 @@ class CustomerController:
     
     def get_customers_with_health_scores(
         self,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
         health_status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
@@ -46,17 +45,15 @@ class CustomerController:
         if health_status:
             loaded_customers = self.customer_repo.get_by_health_status(health_status)
             # Apply pagination to loaded data
-            if offset:
-                loaded_customers = loaded_customers[offset:]
-            if limit:
-                loaded_customers = loaded_customers[:limit]
         else:
-            loaded_customers = self.customer_repo.get_all(limit=limit, offset=offset)
+            loaded_customers = self.customer_repo.get_all()
         
         # 🔥 LOAD ALL HEALTH SCORES DATA - Load once for all customers
         customer_ids = [customer.id for customer in loaded_customers]
+        print(len(customer_ids))
         loaded_health_scores = {}
-        
+        health_score_controller = HealthScoreController(self.customer_repo.db)
+        health_score_controller.bulk_calculate_health_scores(customer_ids)
         for customer_id in customer_ids:
             health_score = self.health_score_repo.get_latest_by_customer(customer_id)
             loaded_health_scores[customer_id] = health_score
