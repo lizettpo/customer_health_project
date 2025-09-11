@@ -103,3 +103,67 @@ class TestHealthScoreService:
         service2 = HealthScoreService(self.mock_db)
         
         assert service1 is service2
+
+    # =========================
+    # SAD PATH / ERROR SCENARIOS
+    # =========================
+    
+    def test_get_customer_health_detail_not_found(self):
+        """Test getting health detail for non-existent customer"""
+        from domain.exceptions import CustomerNotFoundError
+        self.service.health_score_controller.get_customer_health_detail.side_effect = CustomerNotFoundError(999)
+        
+        with pytest.raises(CustomerNotFoundError):
+            self.service.get_customer_health_detail(999)
+    
+    def test_get_customer_health_detail_invalid_id_type(self):
+        """Test getting health detail with invalid customer ID type"""
+        # Service passes through to controller - let controller handle validation
+        self.service.health_score_controller.get_customer_health_detail.return_value = None
+        
+        result = self.service.get_customer_health_detail("invalid_id")
+        
+        # Service should call controller with the invalid parameter
+        self.service.health_score_controller.get_customer_health_detail.assert_called_once_with("invalid_id")
+    
+    def test_calculate_and_save_health_score_not_found(self):
+        """Test calculating health score for non-existent customer"""
+        from domain.exceptions import CustomerNotFoundError
+        self.service.health_score_controller.calculate_and_save_health_score.side_effect = CustomerNotFoundError(999)
+        
+        with pytest.raises(CustomerNotFoundError):
+            self.service.calculate_and_save_health_score(999)
+    
+    def test_calculate_and_save_health_score_calculation_error(self):
+        """Test error during health score calculation"""
+        from domain.exceptions import InvalidHealthScoreError
+        self.service.health_score_controller.calculate_and_save_health_score.side_effect = InvalidHealthScoreError(150.0, "Score out of range")
+        
+        with pytest.raises(InvalidHealthScoreError):
+            self.service.calculate_and_save_health_score(1)
+    
+    def test_get_dashboard_stats_database_error(self):
+        """Test dashboard stats with database error"""
+        from domain.exceptions import DatabaseError, DataErrorCode
+        self.service.health_score_controller.get_dashboard_statistics.side_effect = DatabaseError("query", "health_scores", DataErrorCode.DATABASE_CONNECTION_FAILED)
+        
+        with pytest.raises(DatabaseError):
+            self.service.get_dashboard_stats()
+    
+    def test_get_dashboard_stats_empty_database(self):
+        """Test dashboard stats with empty database"""
+        empty_stats = {
+            "total_customers": 0,
+            "healthy_customers": 0,
+            "at_risk_customers": 0,
+            "critical_customers": 0,
+            "average_health_score": 0.0,
+            "health_coverage_percentage": 0.0
+        }
+        self.service.health_score_controller.get_dashboard_statistics.return_value = empty_stats
+        
+        result = self.service.get_dashboard_stats()
+        
+        assert result == empty_stats
+        assert result["total_customers"] == 0
+        assert result["average_health_score"] == 0.0

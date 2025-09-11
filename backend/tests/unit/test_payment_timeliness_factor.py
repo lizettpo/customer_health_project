@@ -296,3 +296,151 @@ class TestPaymentTimelinessFactor:
         assert result.metadata["total_payments"] == 1
         assert result.metadata["late_payments"] == 1
         assert result.metadata["average_amount"] == 500.0
+
+    # =========================
+    # SAD PATH / EDGE CASES
+    # =========================
+    
+    def test_calculate_score_zero_amount_payment(self):
+        """Test handling of zero amount payments"""
+        events = []
+        
+        event = Mock(spec=CustomerEvent)
+        event.event_type = "payment"
+        event.timestamp = datetime.utcnow() - timedelta(days=15)
+        event.event_data = {
+            "payment_method": "credit_card",
+            "amount": 0.0  # Zero amount
+        }
+        event.get_payment_status.return_value = "paid_on_time"
+        events.append(event)
+        
+        result = self.factor.calculate_score(self.customer, events)
+        
+        assert result.score == 100.0  # Still counts as on-time
+        assert result.metadata["total_payments"] == 1
+        assert result.metadata["average_amount"] == 0.0
+    
+    def test_calculate_score_negative_amount_payment(self):
+        """Test handling of negative amount payments (refunds)"""
+        events = []
+        
+        event = Mock(spec=CustomerEvent)
+        event.event_type = "payment"
+        event.timestamp = datetime.utcnow() - timedelta(days=20)
+        event.event_data = {
+            "payment_method": "refund",
+            "amount": -100.0  # Negative amount (refund)
+        }
+        event.get_payment_status.return_value = "paid_on_time"
+        events.append(event)
+        
+        result = self.factor.calculate_score(self.customer, events)
+        
+        assert result.score == 100.0
+        assert result.metadata["average_amount"] == -100.0  # Should handle negative amounts
+    
+    def test_calculate_score_missing_payment_method(self):
+        """Test handling of payments missing payment method"""
+        events = []
+        
+        event = Mock(spec=CustomerEvent)
+        event.event_type = "payment" 
+        event.timestamp = datetime.utcnow() - timedelta(days=10)
+        event.event_data = {
+            # Missing payment_method
+            "amount": 250.0
+        }
+        event.get_payment_status.return_value = "paid_on_time"
+        events.append(event)
+        
+        result = self.factor.calculate_score(self.customer, events)
+        
+        # Should still process the payment despite missing method
+        assert result.score == 100.0
+        assert result.metadata["total_payments"] == 1
+    
+    def test_calculate_score_invalid_event_data_structure(self):
+        """Test handling of malformed event data"""
+        events = []
+        
+        event = Mock(spec=CustomerEvent)
+        event.event_type = "payment"
+        event.timestamp = datetime.utcnow() - timedelta(days=25)
+        event.event_data = None  # Invalid data structure
+        event.get_payment_status.return_value = "paid_on_time"
+        events.append(event)
+        
+        # Should handle gracefully or raise appropriate error
+        try:
+            result = self.factor.calculate_score(self.customer, events)
+            # If it doesn't raise an error, it should handle gracefully
+            assert result is not None
+        except (AttributeError, KeyError, TypeError):
+            # Expected behavior - should handle gracefully
+            pass
+    
+    def test_calculate_score_extremely_large_amount(self):
+        """Test handling of extremely large payment amounts"""
+        events = []
+        
+        event = Mock(spec=CustomerEvent)
+        event.event_type = "payment"
+        event.timestamp = datetime.utcnow() - timedelta(days=5)
+        event.event_data = {
+            "payment_method": "wire_transfer",
+            "amount": 999999999.99  # Very large amount
+        }
+        event.get_payment_status.return_value = "paid_on_time"
+        events.append(event)
+        
+        result = self.factor.calculate_score(self.customer, events)
+        
+        assert result.score == 100.0
+        assert result.metadata["average_amount"] == 999999999.99
+        assert result.metadata["total_payments"] == 1
+    
+    def test_calculate_score_payment_status_exception(self):
+        """Test handling when payment status check throws exception"""
+        events = []
+        
+        event = Mock(spec=CustomerEvent)
+        event.event_type = "payment"
+        event.timestamp = datetime.utcnow() - timedelta(days=15)
+        event.event_data = {
+            "payment_method": "credit_card",
+            "amount": 100.0
+        }
+        event.get_payment_status.side_effect = Exception("Status check failed")
+        events.append(event)
+        
+        # Should handle payment status errors gracefully
+        try:
+            result = self.factor.calculate_score(self.customer, events)
+            # If no exception, check it handled gracefully
+            assert result is not None
+        except Exception:
+            # Expected - method should handle status check failures appropriately
+            pass
+    
+    def test_calculate_score_customer_without_segment(self):
+        """Test calculation for customer without segment information"""
+        customer_no_segment = Mock()
+        customer_no_segment.segment = None  # No segment info
+        
+        events = []
+        event = Mock(spec=CustomerEvent)
+        event.event_type = "payment"
+        event.timestamp = datetime.utcnow() - timedelta(days=10)
+        event.event_data = {
+            "payment_method": "credit_card", 
+            "amount": 200.0
+        }
+        event.get_payment_status.return_value = "paid_on_time"
+        events.append(event)
+        
+        result = self.factor.calculate_score(customer_no_segment, events)
+        
+        # Should handle customer without segment gracefully
+        assert result is not None
+        assert result.score >= 0

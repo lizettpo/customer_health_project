@@ -14,17 +14,13 @@ sys.path.insert(0, str(backend_dir))
 
 # Set test environment
 os.environ["TESTING"] = "true"
-os.environ["DATABASE_URL"] = "postgresql://postgres:password123@localhost:5434/customer_health_test"
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 def main():
     """Clean the test database"""
     try:
-        # Import after setting environment variables
-        from tests.conftest import clean_database
-        
-        print("Cleaning test database...")
-        clean_database()
-        print("Test database cleaned successfully!")
+        print("SQLite in-memory database is automatically clean on each test run")
+        print("No manual cleanup needed!")
         
     except Exception as e:
         print(f"Error cleaning test database: {e}")

@@ -169,3 +169,114 @@ class TestCustomerService:
         service2 = CustomerService(self.mock_db)
         
         assert service1 is service2
+
+    # =========================
+    # SAD PATH / ERROR SCENARIOS
+    # =========================
+    
+    def test_get_customers_with_health_scores_database_error(self):
+        """Test error handling when database fails"""
+        from domain.exceptions import DatabaseError, DataErrorCode
+        self.service.customer_controller.get_customers_with_health_scores.side_effect = DatabaseError("query", "customers", DataErrorCode.DATABASE_CONNECTION_FAILED)
+        
+        with pytest.raises(DatabaseError):
+            self.service.get_customers_with_health_scores()
+    
+    def test_get_customers_with_invalid_pagination(self):
+        """Test handling of invalid pagination parameters"""
+        # Service should pass through invalid params to controller for validation
+        self.service.customer_controller.get_customers_with_health_scores.return_value = []
+        
+        result = self.service.get_customers_with_health_scores(limit=-1, offset=-10)
+        
+        # Controller should be called with invalid params (let controller handle validation)
+        self.service.customer_controller.get_customers_with_health_scores.assert_called_once_with(
+            limit=-1, offset=-10, health_status=None
+        )
+    
+    def test_get_customer_by_id_not_found(self):
+        """Test getting non-existent customer"""
+        from domain.exceptions import CustomerNotFoundError
+        self.service.customer_controller.get_customer_by_id.side_effect = CustomerNotFoundError(999)
+        
+        with pytest.raises(CustomerNotFoundError):
+            self.service.get_customer_by_id(999)
+    
+    def test_get_customer_by_id_invalid_type(self):
+        """Test getting customer with invalid ID type"""
+        # Service passes through to controller - let controller handle validation
+        self.service.customer_controller.get_customer_by_id.return_value = None
+        
+        result = self.service.get_customer_by_id("invalid_id")
+        
+        # Service should call controller with the invalid parameter
+        self.service.customer_controller.get_customer_by_id.assert_called_once_with("invalid_id")
+    
+    def test_record_event_invalid_customer(self):
+        """Test recording event for non-existent customer"""
+        from domain.exceptions import CustomerNotFoundError
+        self.service.customer_controller.record_customer_event.side_effect = CustomerNotFoundError(999)
+        
+        with pytest.raises(CustomerNotFoundError):
+            self.service.record_event(999, "login")
+    
+    def test_record_event_empty_event_type(self):
+        """Test recording event with empty event type"""
+        # Service should pass through to controller for validation
+        self.service.customer_controller.record_customer_event.return_value = {"success": True}
+        
+        result = self.service.record_event(1, "")
+        
+        self.service.customer_controller.record_customer_event.assert_called_once_with(
+            customer_id=1, event_type="", event_data=None, timestamp=None
+        )
+    
+    def test_record_event_none_event_type(self):
+        """Test recording event with None event type"""
+        # Service should pass through to controller for validation
+        self.service.customer_controller.record_customer_event.return_value = {"success": True}
+        
+        result = self.service.record_event(1, None)
+        
+        self.service.customer_controller.record_customer_event.assert_called_once_with(
+            customer_id=1, event_type=None, event_data=None, timestamp=None
+        )
+    
+    def test_record_event_invalid_event_data(self):
+        """Test recording event with invalid event data structure"""
+        # Test with non-dict event data
+        invalid_data = "not_a_dict"
+        self.service.customer_controller.record_customer_event.return_value = {"success": True}
+        
+        # Service should pass through - let controller validate
+        result = self.service.record_event(1, "login", invalid_data)
+        
+        self.service.customer_controller.record_customer_event.assert_called_once_with(
+            customer_id=1, event_type="login", event_data=invalid_data, timestamp=None
+        )
+    
+    def test_get_customer_events_invalid_customer(self):
+        """Test getting events for non-existent customer"""
+        from domain.exceptions import CustomerNotFoundError
+        self.service.customer_controller.get_customer_events.side_effect = CustomerNotFoundError(999)
+        
+        with pytest.raises(CustomerNotFoundError):
+            self.service.get_customer_events(999)
+    
+    def test_get_customer_events_negative_days(self):
+        """Test getting events with negative days parameter"""
+        self.service.customer_controller.get_customer_events.return_value = []
+        
+        result = self.service.get_customer_events(1, days=-30)
+        
+        # Service should pass through negative days to controller
+        self.service.customer_controller.get_customer_events.assert_called_once_with(1, -30)
+    
+    def test_get_customer_events_zero_days(self):
+        """Test getting events with zero days parameter"""
+        self.service.customer_controller.get_customer_events.return_value = []
+        
+        result = self.service.get_customer_events(1, days=0)
+        
+        self.service.customer_controller.get_customer_events.assert_called_once_with(1, 0)
+        assert result == []

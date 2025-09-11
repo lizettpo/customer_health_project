@@ -4,9 +4,9 @@ Test configuration and fixtures
 import pytest
 import os
 
-# Set test environment and database before importing any modules
+# Set test environment and use SQLite file for shared access between test and app
 os.environ["TESTING"] = "true" 
-os.environ["DATABASE_URL"] = "postgresql://postgres:password123@localhost:5434/customer_health_test"
+os.environ["DATABASE_URL"] = "sqlite:///./test_database.db"
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -19,55 +19,45 @@ with patch('main.Base.metadata.create_all'):
     from main import app
 
 
-# Test database URL - use PostgreSQL for integration tests
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:password123@localhost:5434/customer_health_test")
+# Test database URL - use SQLite file for shared access
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite:///./test_database.db")
 
 engine = create_engine(
-    TEST_DATABASE_URL
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in TEST_DATABASE_URL else {}
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def clean_database():
-    """Utility function to completely clean the test database"""
-    try:
-        # Drop all tables
-        Base.metadata.drop_all(bind=engine)
-        
-        # Also drop any remaining tables that might not be in metadata
-        with engine.connect() as connection:
-            # Get all table names
-            result = connection.execute(text("""
-                SELECT tablename FROM pg_tables 
-                WHERE schemaname = 'public'
-            """))
-            tables = [row[0] for row in result.fetchall()]
-            
-            # Drop each table with CASCADE to handle foreign key constraints
-            for table in tables:
-                connection.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
-            connection.commit()
-            
-        # Dispose engine connections
-        engine.dispose()
-        
-    except Exception as e:
-        print(f"Error cleaning database: {e}")
-
-
 @pytest.fixture(autouse=True, scope="session")
-def setup_and_cleanup_database():
-    """Setup and cleanup database before and after all tests"""
-    # Clean database before tests
-    clean_database()
+def setup_database():
+    """Setup database once for all tests - SQLite file needs manual cleanup"""
+    import os
+    
+    # Remove test database file if it exists
+    test_db_file = "./test_database.db"
+    if os.path.exists(test_db_file):
+        os.remove(test_db_file)
     
     # Create tables for tests
     Base.metadata.create_all(bind=engine)
-    
     yield
     
-    # Clean after all tests
-    clean_database()
+    # Clean up test database file after tests - dispose engines first
+    try:
+        engine.dispose()
+        # Also dispose main app engine
+        from database import engine as main_engine
+        main_engine.dispose()
+    except:
+        pass
+        
+    try:
+        if os.path.exists(test_db_file):
+            os.remove(test_db_file)
+    except PermissionError:
+        # File still in use - leave it for manual cleanup
+        pass
 
 
 @pytest.fixture(scope="function")
@@ -98,37 +88,21 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
-def truncate_tables():
-    """Truncate all tables but keep the schema"""
-    try:
-        with engine.connect() as connection:
-            # Get all table names
-            result = connection.execute(text("""
-                SELECT tablename FROM pg_tables 
-                WHERE schemaname = 'public'
-            """))
-            tables = [row[0] for row in result.fetchall()]
-            
-            if tables:
-                # Disable foreign key checks, truncate all tables, re-enable
-                connection.execute(text('SET session_replication_role = replica'))
-                for table in tables:
-                    connection.execute(text(f'TRUNCATE TABLE "{table}" RESTART IDENTITY CASCADE'))
-                connection.execute(text('SET session_replication_role = DEFAULT'))
-                connection.commit()
-                
-    except Exception as e:
-        print(f"Error truncating tables: {e}")
-
-
-# Remove automatic cleaning - only clean at session level for speed
-
-
 @pytest.fixture
 def clean_db():
-    """Explicit fixture to clean database - can be used by tests that need extra cleanup"""
+    """Explicit fixture for tests that need clean slate - deletes all data but keeps tables"""
+    # Clean BEFORE the test runs
+    with engine.connect() as connection:
+        # Delete all data from all tables in reverse order to handle foreign keys
+        for table in reversed(Base.metadata.sorted_tables):
+            connection.execute(table.delete())
+        connection.commit()
     yield
-    truncate_tables()
+    # Also clean after the test (optional)
+    with engine.connect() as connection:
+        for table in reversed(Base.metadata.sorted_tables):
+            connection.execute(table.delete())
+        connection.commit()
 
 
 @pytest.fixture

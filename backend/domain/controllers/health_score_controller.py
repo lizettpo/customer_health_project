@@ -126,7 +126,7 @@ class HealthScoreController:
                 "at_risk_percent": round((loaded_at_risk_count / total_with_scores * 100), 1) if total_with_scores > 0 else 0,
                 "critical_percent": round((loaded_critical_count / total_with_scores * 100), 1) if total_with_scores > 0 else 0
             },
-            "last_updated": now
+            "last_updated": now.isoformat()
         }
         self._last_dashboard_load = now
         
