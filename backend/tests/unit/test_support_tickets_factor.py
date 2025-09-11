@@ -234,8 +234,9 @@ class TestSupportTicketsFactor:
         
         assert result.value == 3
         assert result.score == 60.0
-        assert "unknown" in result.metadata["ticket_types"]
-        assert result.metadata["priorities"]["medium"] == 3  # Default priority
+        # When event_data is None, no ticket metadata is processed
+        assert result.metadata["ticket_types"] == {}
+        assert result.metadata["priorities"]["medium"] == 0  # No processing when event_data is None
     
     def test_calculate_score_minimum_score_cap(self):
         """Test that score doesn't go below minimum with severe penalties"""

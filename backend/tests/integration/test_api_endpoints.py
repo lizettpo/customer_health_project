@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import json
 
-from data.models import Customer, Event, HealthScore
+from data.models import Customer, CustomerEvent, HealthScore
 from schemas import CustomerEventCreate
 
 
@@ -150,7 +150,7 @@ class TestHealthScoreEndpoints:
         
         # Create some events
         events = [
-            Event(
+            CustomerEvent(
                 customer_id=customer.id,
                 event_type="login",
                 event_data={},
@@ -270,7 +270,7 @@ class TestEventEndpoints:
         assert data["data"]["event_type"] == "api_call"
         
         # Verify event was created in database
-        db_events = db_session.query(Event).filter_by(customer_id=customer.id).all()
+        db_events = db_session.query(CustomerEvent).filter_by(customer_id=customer.id).all()
         assert len(db_events) == 1
         assert db_events[0].event_type == "api_call"
     
@@ -347,7 +347,7 @@ class TestEventEndpoints:
         assert data["success"] is True
         
         # Verify timestamp was used
-        db_event = db_session.query(Event).filter_by(customer_id=customer.id).first()
+        db_event = db_session.query(CustomerEvent).filter_by(customer_id=customer.id).first()
         assert db_event is not None
         assert abs((db_event.timestamp - custom_time).total_seconds()) < 1
 

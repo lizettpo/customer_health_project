@@ -91,3 +91,4 @@ coverage.xml
 node_modules/
 venv/
 .env
+nul

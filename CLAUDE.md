@@ -6,9 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Backend (FastAPI + SQLAlchemy)
 - **Run server**: `cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000`
-- **Run tests**: `cd backend && python -m pytest`
+- **Run tests**: `cd backend && python run_tests.py`
 - **Install dependencies**: `cd backend && pip install -r requirements.txt`
 - **Database migrations**: Uses SQLAlchemy with auto-create tables on startup
+
+### Testing
+- **Single command**: `cd backend && python run_tests.py` 
+- **Coverage**: Minimum 85% code coverage required
+- **Test types**: Unit tests (116 tests) + Integration tests (16 tests)
+- **Test structure**: 
+  - `tests/unit/` - Unit tests for individual components
+  - `tests/integration/` - API endpoint integration tests
+  - `tests/conftest.py` - Test configuration and fixtures
 
 ### Docker
 - **Build**: `cd backend && docker build -t customer-health-api .`

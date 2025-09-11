@@ -73,8 +73,8 @@ class CustomerController:
                 "email": customer.email,
                 "company": customer.company,
                 "segment": customer.segment,
-                "created_at": customer.created_at,
-                "last_activity": customer.last_activity,
+                "created_at": customer.created_at.isoformat() if customer.created_at else None,
+                "last_activity": customer.last_activity.isoformat() if customer.last_activity else None,
                 "health_score": health_score.score if health_score else 0,
                 "health_status": health_score.status if health_score else "unknown"
             }
@@ -164,7 +164,7 @@ class CustomerController:
             "customer_id": loaded_customer.id,
             "customer_name": loaded_customer.name,
             "event_type": event_type,
-            "timestamp": saved_event.timestamp
+            "timestamp": saved_event.timestamp.isoformat() if saved_event.timestamp else None
         }
     
     def get_customer_count(self) -> int:

@@ -72,12 +72,12 @@ class HealthScoreController:
                 }
                 for name, factor in saved_health_score.factors.items()
             },
-            "calculated_at": saved_health_score.calculated_at,
+            "calculated_at": saved_health_score.calculated_at.isoformat() if saved_health_score.calculated_at else None,
             "historical_scores": [
                 {
                     "score": hs.score,
                     "status": hs.status,
-                    "calculated_at": hs.calculated_at
+                    "calculated_at": hs.calculated_at.isoformat() if hs.calculated_at else None
                 }
                 for hs in loaded_historical_scores
             ],

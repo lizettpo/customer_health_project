@@ -16,8 +16,10 @@ from schemas import CustomerListResponse, HealthScoreDetailResponse, CustomerEve
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables (skip during testing)
+import os
+if not os.getenv("TESTING"):
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Customer Health Score API",
@@ -55,6 +57,11 @@ async def domain_error_handler(request, exc: DomainError):
 @app.on_event("startup")
 async def startup_event():
     """Initialize database with sample data"""
+    # Skip sample data population during testing
+    if os.getenv("TESTING"):
+        logger.info("Skipping sample data population during testing")
+        return
+        
     from sample_data import populate_sample_data
     
     db = SessionLocal()
@@ -67,6 +74,9 @@ async def startup_event():
             logger.info("Sample data populated successfully!")
         else:
             logger.info(f"Database already contains {customer_count} customers")
+    except Exception as e:
+        # Handle case where tables don't exist (e.g., during testing)
+        logger.info(f"Skipping sample data population: {e}")
     finally:
         db.close()
 

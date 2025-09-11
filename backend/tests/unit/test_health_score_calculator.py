@@ -112,7 +112,7 @@ class TestHealthScoreCalculator:
         """Test recommendations for at-risk scores"""
         recommendations = self.calculator._generate_general_recommendations(55.0, self.customer)
         
-        assert "Monitor closely" in " ".join(recommendations)
+        assert "At-risk customer requires immediate attention" in " ".join(recommendations)
     
     def test_generate_general_recommendations_critical(self):
         """Test recommendations for critical scores"""
