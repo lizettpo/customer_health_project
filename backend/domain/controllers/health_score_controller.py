@@ -14,16 +14,25 @@ from domain.exceptions import CustomerNotFoundError
 
 class HealthScoreController:
     """Controller that LOADS DATA and coordinates with domain logic"""
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls, db: Session = None):
+        if cls._instance is None:
+            cls._instance = super(HealthScoreController, cls).__new__(cls)
+        return cls._instance
     
     def __init__(self, db: Session):
-        self.customer_repo = CustomerRepository(db)
-        self.event_repo = EventRepository(db)
-        self.health_score_repo = HealthScoreRepository(db)
-        self.calculator = HealthScoreCalculator()
-        
-        # Cache for loaded data
-        self._dashboard_data = None
-        self._last_dashboard_load = None
+        if not self._initialized:
+            self.customer_repo = CustomerRepository(db)
+            self.event_repo = EventRepository(db)
+            self.health_score_repo = HealthScoreRepository(db)
+            self.calculator = HealthScoreCalculator()
+            
+            # Cache for loaded data
+            self._dashboard_data = None
+            self._last_dashboard_load = None
+            HealthScoreController._initialized = True
     
     def get_customer_health_detail(self, customer_id: int) -> Dict[str, Any]:
         """

@@ -61,3 +61,6 @@ backend/
 
 ### Health Score Calculation
 Health scores are calculated using weighted factors and stored in the database. The system supports background recalculation when new events are recorded. Each factor contributes to an overall score (0-100) with status classification (healthy/at_risk/critical).
+- when adding or editing function signertures always update the 
+  tests and if function is new add new tests in the relevent test 
+  file
