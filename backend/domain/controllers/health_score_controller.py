@@ -14,19 +14,8 @@ from domain.exceptions import CustomerNotFoundError
 
 class HealthScoreController:
     """Controller that LOADS DATA and coordinates with domain logic"""
-    _instance = None
-    _db = None
-    
-    def __new__(cls, db: Session):
-        if cls._instance is None or cls._db != db:
-            cls._instance = super().__new__(cls)
-            cls._db = db
-            cls._instance._initialized = False
-        return cls._instance
     
     def __init__(self, db: Session):
-        if self._initialized:
-            return
         self.customer_repo = CustomerRepository(db)
         self.event_repo = EventRepository(db)
         self.health_score_repo = HealthScoreRepository(db)
@@ -83,44 +72,27 @@ class HealthScoreController:
     
     def get_dashboard_statistics(self) -> Dict[str, Any]:
         """
-        LOADS AND CACHES DATA: Load all dashboard data once, coordinate in memory
+        Get dashboard statistics using optimized single query
         """
+        # Use optimized single query instead of multiple queries
+        stats = self.health_score_repo.get_dashboard_stats()
         
-        # Check if we have cached data (cache for 10 seconds for fresher data)
-        now = datetime.utcnow()
-        if (self._dashboard_data and self._last_dashboard_load and 
-            (now - self._last_dashboard_load).total_seconds() < 10):
-            return self._dashboard_data
+        # Calculate additional metrics
+        total_with_scores = stats["healthy_customers"] + stats["at_risk_customers"] + stats["critical_customers"]
         
-        # 🔥 LOAD ALL DASHBOARD DATA AT ONCE
-        loaded_total_customers = self.customer_repo.count()
-        loaded_healthy_count = self.health_score_repo.count_by_status("healthy")
-        loaded_at_risk_count = self.health_score_repo.count_by_status("at_risk")
-        loaded_critical_count = self.health_score_repo.count_by_status("critical")
-        loaded_average_score = self.health_score_repo.get_average_score()
-        
-        # 🔥 COORDINATE LOADED DATA - Calculate additional metrics in memory
-        total_with_scores = loaded_healthy_count + loaded_at_risk_count + loaded_critical_count
-        health_coverage = (total_with_scores / loaded_total_customers * 100) if loaded_total_customers > 0 else 0
-        
-        # 🔥 CACHE THE COORDINATED DATA
-        self._dashboard_data = {
-            "total_customers": loaded_total_customers,
-            "healthy_customers": loaded_healthy_count,
-            "at_risk_customers": loaded_at_risk_count,
-            "critical_customers": loaded_critical_count,
-            "average_health_score": round(loaded_average_score, 2),
-            "health_coverage_percentage": round(health_coverage, 1),
+        return {
+            "total_customers": stats["total_customers"],
+            "healthy_customers": stats["healthy_customers"],
+            "at_risk_customers": stats["at_risk_customers"],
+            "critical_customers": stats["critical_customers"],
+            
             "distribution": {
-                "healthy_percent": round((loaded_healthy_count / total_with_scores * 100), 1) if total_with_scores > 0 else 0,
-                "at_risk_percent": round((loaded_at_risk_count / total_with_scores * 100), 1) if total_with_scores > 0 else 0,
-                "critical_percent": round((loaded_critical_count / total_with_scores * 100), 1) if total_with_scores > 0 else 0
+                "healthy_percent": round((stats["healthy_customers"] / total_with_scores * 100), 1) if total_with_scores > 0 else 0,
+                "at_risk_percent": round((stats["at_risk_customers"] / total_with_scores * 100), 1) if total_with_scores > 0 else 0,
+                "critical_percent": round((stats["critical_customers"] / total_with_scores * 100), 1) if total_with_scores > 0 else 0
             },
-            "last_updated": now.isoformat()
+            "last_updated": datetime.utcnow().isoformat()
         }
-        self._last_dashboard_load = now
-        
-        return self._dashboard_data
     
     def bulk_calculate_health_scores(self, customer_ids: List[int]) -> Dict[str, Any]:
         """

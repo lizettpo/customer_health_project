@@ -59,6 +59,13 @@ def get_db():
     finally:
         db.close()
 
+# Service dependencies
+def get_customer_service(db: Session = Depends(get_db)) -> CustomerService:
+    return CustomerService(db)
+
+def get_health_service(db: Session = Depends(get_db)) -> HealthScoreService:
+    return HealthScoreService(db)
+
 # Exception handlers
 @app.exception_handler(CustomerNotFoundError)
 async def customer_not_found_handler(request, exc: CustomerNotFoundError):
@@ -127,11 +134,9 @@ async def startup_event():
         else:
             logger.info(f"Database already contains {customer_count} customers")
         
-        # 2e) Recalculate all health scores on startup
-        logger.info("Recalculating health scores for all customers...")
-        health_service = HealthScoreService(db)
-        processed_count = health_service.recalculate_all_health_scores()
-        logger.info(f"Successfully recalculated health scores for {processed_count} customers")
+        # 2e) Skip health score recalculation on startup to avoid timeouts
+        # Health scores are calculated on-demand and via background tasks
+        logger.info("Skipping health score recalculation on startup to improve response times")
         
     except Exception as e:
         logger.info(f"Error during startup: {e}")
@@ -147,11 +152,10 @@ async def root():
 @app.get("/api/customers", response_model=List[CustomerListResponse])
 async def get_customers(
     health_status: Optional[str] = None,
-    db: Session = Depends(get_db)
+    customer_service: CustomerService = Depends(get_customer_service)
 ):
     """Get all customers with their health scores"""
     try:
-        customer_service = CustomerService(db)
         customers = customer_service.get_customers_with_health_scores(
             health_status=health_status
         )
@@ -161,10 +165,12 @@ async def get_customers(
         return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to fetch customers"})
 
 @app.get("/api/customers/{customer_id}/health", response_model=HealthScoreDetailResponse)
-async def get_customer_health_detail(customer_id: int, db: Session = Depends(get_db)):
+async def get_customer_health_detail(
+    customer_id: int, 
+    health_service: HealthScoreService = Depends(get_health_service)
+):
     """Get detailed health breakdown for a customer"""
     try:
-        health_service = HealthScoreService(db)
         health_detail = health_service.get_customer_health_detail(customer_id)
         return JSONResponse(content={"success": True, "data": health_detail})
     except CustomerNotFoundError:
@@ -190,8 +196,8 @@ async def record_customer_event(
             timestamp=event.timestamp
         )
         
-        # Recalculate health score in background
-        background_tasks.add_task(recalculate_health_score, customer_id, db)
+        # Skip background health score recalculation to avoid SQLite lock contention
+        # Health scores are calculated on-demand when requested
         
         return JSONResponse(content={"success": True, "data": result, "message": "Event recorded successfully"})
     except CustomerNotFoundError:
@@ -201,15 +207,14 @@ async def record_customer_event(
         return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to record event"})
 
 @app.get("/api/dashboard/stats")
-async def get_dashboard_stats(db: Session = Depends(get_db)):
+async def get_dashboard_stats(health_service: HealthScoreService = Depends(get_health_service)):
     """Get dashboard statistics"""
     try:
-        health_service = HealthScoreService(db)
         stats = health_service.get_dashboard_stats()
         return JSONResponse(content={"success": True, "data": stats})
     except Exception as e:
         logger.error(f"Error getting dashboard stats: {e}")
-        return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to get dashboard stats"})
+        return JSONResponse(status_code=505, content={"success": False, "error": "Server error", "detail": {"Failed to get dashboard stats"}})
 
 @app.get("/health")
 async def health_check():

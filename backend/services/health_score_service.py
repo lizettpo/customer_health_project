@@ -11,21 +11,9 @@ from domain.controllers.health_score_controller import HealthScoreController
 
 class HealthScoreService:
     """Service layer for health score operations - pure orchestration"""
-    _instance = None
-    _db = None
-    
-    def __new__(cls, db: Session):
-        if cls._instance is None or cls._db != db:
-            cls._instance = super().__new__(cls)
-            cls._db = db
-            cls._instance._initialized = False
-        return cls._instance
     
     def __init__(self, db: Session):
-        if self._initialized:
-            return
         self.health_score_controller = HealthScoreController(db)
-        self._initialized = True
     
     def get_customer_health_detail(self, customer_id: int) -> Dict[str, Any]:
         """Get detailed health breakdown"""

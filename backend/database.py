@@ -13,7 +13,9 @@ DATABASE_URL = "sqlite:///./customer_health.db"
 if "sqlite" in DATABASE_URL:
     engine = create_engine(
         DATABASE_URL,
-        connect_args={"check_same_thread": False},
+                connect_args={"check_same_thread": False},
+
+        pool_recycle=-1,  # Don't recycle connections for SQLite
         echo=False
     )
 else:

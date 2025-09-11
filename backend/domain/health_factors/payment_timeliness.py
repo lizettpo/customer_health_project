@@ -77,7 +77,7 @@ class PaymentTimelinessFactor(HealthFactor):
                 total_amount += amount
         
         total_payments = len(payment_events)
-        on_time_percentage = (on_time_payments / total_payments) * 100
+        on_time_percentage = (on_time_payments / total_payments) * 100 if total_payments > 0 else 0
         average_amount = total_amount / total_payments if total_payments > 0 else 0
         
         # Score based on on-time percentage with different penalties
@@ -105,10 +105,15 @@ class PaymentTimelinessFactor(HealthFactor):
             "average_amount": round(average_amount, 2)
         }
         
+        if total_payments > 0:
+            description = f"{on_time_percentage:.1f}% payments on time ({on_time_payments}/{total_payments})"
+        else:
+            description = "No payment history available"
+        
         return FactorScore(
             score=score,
             value=on_time_payments,
-            description=f"{on_time_percentage:.1f}% payments on time ({on_time_payments}/{total_payments})",
+            description=description,
             metadata=metadata
         )
     

@@ -13,19 +13,8 @@ from domain.exceptions import CustomerNotFoundError
 
 class CustomerController:
     """Controller that LOADS DATA and keeps it in memory for coordination"""
-    _instance = None
-    _db = None
-    
-    def __new__(cls, db: Session):
-        if cls._instance is None or cls._db != db:
-            cls._instance = super().__new__(cls)
-            cls._db = db
-            cls._instance._initialized = False
-        return cls._instance
     
     def __init__(self, db: Session):
-        if self._initialized:
-            return
         self.customer_repo = CustomerRepository(db)
         self.event_repo = EventRepository(db)
         self.health_score_repo = HealthScoreRepository(db)
@@ -53,11 +42,11 @@ class CustomerController:
         from domain.controllers.health_score_controller import HealthScoreController
         health_controller = HealthScoreController(self.customer_repo.db)
         
-        # 🔥 COORDINATE LOADED DATA - Work with loaded data in memory
+        # 🔥 COORDINATE LOADED DATA - Use existing health scores for performance
         result = []
         for customer in loaded_customers:
-            # Use the same calculation method as detail view
-            health_score = health_controller.calculate_and_save_health_score(customer.id)
+            # Get existing health score instead of recalculating
+            existing_health_score = self.health_score_repo.get_latest_by_customer(customer.id)
             
             # FORMAT loaded data
             customer_data = {
@@ -68,8 +57,8 @@ class CustomerController:
                 "segment": customer.segment,
                 "created_at": customer.created_at.isoformat() if customer.created_at else None,
                 "last_activity": customer.last_activity.isoformat() if customer.last_activity else None,
-                "health_score": health_score.score if health_score else 0,
-                "health_status": health_score.status if health_score else "unknown"
+                "health_score": existing_health_score.score if existing_health_score else 0,
+                "health_status": existing_health_score.status if existing_health_score else "unknown"
             }
             result.append(customer_data)
         
