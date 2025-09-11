@@ -96,10 +96,10 @@ class HealthScoreController:
         LOADS AND CACHES DATA: Load all dashboard data once, coordinate in memory
         """
         
-        # Check if we have cached data (cache for 5 minutes)
+        # Check if we have cached data (cache for 10 seconds for fresher data)
         now = datetime.utcnow()
         if (self._dashboard_data and self._last_dashboard_load and 
-            (now - self._last_dashboard_load).total_seconds() < 300):
+            (now - self._last_dashboard_load).total_seconds() < 10):
             return self._dashboard_data
         
         # 🔥 LOAD ALL DASHBOARD DATA AT ONCE
@@ -180,3 +180,57 @@ class HealthScoreController:
         """
         # 🔥 LOAD HEALTH SCORE DATA
         return self.health_score_repo.get_latest_by_customer(customer_id)
+    
+    def calculate_and_save_health_score(self, customer_id: int):
+        """
+        Calculate and save health score for a single customer
+        """
+        # 🔥 LOAD CUSTOMER DATA
+        customer = self.customer_repo.get_by_id(customer_id)
+        if not customer:
+            raise CustomerNotFoundError(f"Customer {customer_id} not found")
+        
+        # 🔥 LOAD EVENTS DATA
+        events = self.event_repo.get_recent_events(customer_id, days=90)
+        
+        # 🔥 CALCULATE HEALTH SCORE
+        health_score = self.calculator.calculate_health_score(customer, events)
+        
+        # 🔥 SAVE HEALTH SCORE
+        return self.health_score_repo.save_health_score(health_score)
+    
+    def recalculate_all_health_scores(self) -> int:
+        """
+        Recalculate health scores for all customers in the database
+        Returns the number of customers processed
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # 🔥 LOAD ALL CUSTOMERS
+        all_customers = self.customer_repo.get_all()
+        processed_count = 0
+        
+        logger.info(f"Starting health score recalculation for {len(all_customers)} customers")
+        
+        for customer in all_customers:
+            try:
+                # 🔥 LOAD EVENTS FOR EACH CUSTOMER
+                events = self.event_repo.get_recent_events(customer.id, days=90)
+                
+                # 🔥 CALCULATE HEALTH SCORE
+                health_score = self.calculator.calculate_health_score(customer, events)
+                
+                # 🔥 SAVE HEALTH SCORE
+                self.health_score_repo.save_health_score(health_score)
+                processed_count += 1
+                
+                if processed_count % 10 == 0:
+                    logger.info(f"Processed {processed_count}/{len(all_customers)} customers")
+                    
+            except Exception as e:
+                logger.error(f"Failed to calculate health score for customer {customer.id}: {e}")
+                continue
+        
+        logger.info(f"Completed health score recalculation. Processed {processed_count} customers")
+        return processed_count

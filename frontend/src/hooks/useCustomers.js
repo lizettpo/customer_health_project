@@ -5,12 +5,13 @@ export const useCustomers = (params) => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentParams, setCurrentParams] = useState(params);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (paramsToUse = currentParams) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await CustomerService.getCustomers();
+      const data = await CustomerService.getCustomers(paramsToUse);
       setCustomers(data.data);
     } catch (err) {
       setError(
@@ -23,7 +24,8 @@ export const useCustomers = (params) => {
   };
 
   useEffect(() => {
-    fetchCustomers();
+    setCurrentParams(params);
+    fetchCustomers(params);
   }, [params?.limit, params?.offset, params?.health_status]);
 
   const refetch = () => {

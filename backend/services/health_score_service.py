@@ -35,3 +35,7 @@ class HealthScoreService:
     def get_dashboard_stats(self) -> Dict[str, Any]:
         """Get dashboard statistics"""
         return self.health_score_controller.get_dashboard_statistics()
+    
+    def recalculate_all_health_scores(self) -> int:
+        """Recalculate health scores for all customers"""
+        return self.health_score_controller.recalculate_all_health_scores()

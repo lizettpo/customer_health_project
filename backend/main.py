@@ -97,7 +97,7 @@ async def domain_error_handler(request, exc: DomainError):
 
 @app.on_event("startup")
 async def startup_event():
-    """Ensure tables exist, then optionally seed sample data."""
+    """Ensure tables exist, then optionally seed sample data and recalculate health scores."""
     import os
 
     # 2a) Import models FIRST so Base knows the tables
@@ -126,8 +126,15 @@ async def startup_event():
             logger.info("Sample data populated successfully!")
         else:
             logger.info(f"Database already contains {customer_count} customers")
+        
+        # 2e) Recalculate all health scores on startup
+        logger.info("Recalculating health scores for all customers...")
+        health_service = HealthScoreService(db)
+        processed_count = health_service.recalculate_all_health_scores()
+        logger.info(f"Successfully recalculated health scores for {processed_count} customers")
+        
     except Exception as e:
-        logger.info(f"Skipping sample data population: {e}")
+        logger.info(f"Error during startup: {e}")
     finally:
         db.close()
 

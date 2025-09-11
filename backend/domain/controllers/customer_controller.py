@@ -3,7 +3,6 @@ Controller Layer - Customer Controller
 Loads data into memory and coordinates it (not just calling DB every time)
 """
 
-from domain.controllers.health_score_controller import HealthScoreController
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -50,10 +49,7 @@ class CustomerController:
         
         # 🔥 LOAD ALL HEALTH SCORES DATA - Load once for all customers
         customer_ids = [customer.id for customer in loaded_customers]
-        print(len(customer_ids))
         loaded_health_scores = {}
-        health_score_controller = HealthScoreController(self.customer_repo.db)
-        health_score_controller.bulk_calculate_health_scores(customer_ids)
         for customer_id in customer_ids:
             health_score = self.health_score_repo.get_latest_by_customer(customer_id)
             loaded_health_scores[customer_id] = health_score
@@ -170,3 +166,24 @@ class CustomerController:
         """
         # 🔥 LOAD COUNT DATA
         return self.customer_repo.count()
+    
+    def get_customer_events(self, customer_id: int, days: int = 90) -> List[Dict[str, Any]]:
+        """
+        LOADS DATA: Get customer events
+        """
+        # 🔥 LOAD CUSTOMER DATA - Validate customer exists
+        loaded_customer = self.get_customer_by_id(customer_id)
+        
+        # 🔥 LOAD EVENTS DATA
+        loaded_events = self.event_repo.get_recent_events(customer_id, days)
+        
+        # FORMAT loaded events
+        return [
+            {
+                "id": event.id,
+                "event_type": event.event_type,
+                "event_data": event.event_data,
+                "timestamp": event.timestamp.isoformat() if event.timestamp else None
+            }
+            for event in loaded_events
+        ]

@@ -5,6 +5,7 @@ import CustomerHealthDetail from '../HealthScore/CustomerHealthDetail';
 
 const Dashboard = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleCustomerSelect = (customer) => {
     setSelectedCustomer(customer);
@@ -12,6 +13,8 @@ const Dashboard = () => {
 
   const handleBackToList = () => {
     setSelectedCustomer(null);
+    // Force refresh of dashboard data when returning from detail view
+    setRefreshKey(prev => prev + 1);
   };
 
   if (selectedCustomer) {
@@ -50,8 +53,8 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <DashboardStats />
-        <CustomersList onCustomerSelect={handleCustomerSelect} />
+        <DashboardStats key={`stats-${refreshKey}`} />
+        <CustomersList key={`customers-${refreshKey}`} onCustomerSelect={handleCustomerSelect} />
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ const CustomersList = ({ onCustomerSelect }) => {
   const [page, setPage] = useState(0);
   const limit = 10;
 
-  const { customers, loading, error } = useCustomers({
+  const { customers, loading, error, refetch } = useCustomers({
     health_status:
       healthStatusFilter === "all" ? undefined : healthStatusFilter,
   });
@@ -47,19 +47,32 @@ const CustomersList = ({ onCustomerSelect }) => {
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900">Customers</h3>
 
-          <select
-            value={healthStatusFilter}
-            onChange={(e) => {
-              setHealthStatusFilter(e.target.value);
-              setPage(0);
-            }}
-            className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-          >
-            <option value="all">All Customers</option>
-            <option value="healthy">Healthy</option>
-            <option value="at_risk">At Risk</option>
-            <option value="critical">Critical</option>
-          </select>
+          <div className="flex items-center space-x-3">
+            <select
+              value={healthStatusFilter}
+              onChange={(e) => {
+                setHealthStatusFilter(e.target.value);
+                setPage(0);
+              }}
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+            >
+              <option value="all">All Customers</option>
+              <option value="healthy">Healthy</option>
+              <option value="at_risk">At Risk</option>
+              <option value="critical">Critical</option>
+            </select>
+            
+            <button
+              onClick={refetch}
+              className="flex items-center px-3 py-1 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              disabled={loading}
+            >
+              <svg className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
