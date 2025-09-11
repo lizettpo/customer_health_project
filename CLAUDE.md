@@ -19,6 +19,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `tests/integration/` - API endpoint integration tests
   - `tests/conftest.py` - Test configuration and fixtures
 
+### Frontend (React + TypeScript)
+- **Run development**: `cd frontend && npm start` (http://localhost:3000)
+- **Install dependencies**: `cd frontend && npm install`
+- **Build production**: `cd frontend && npm run build`
+- **Run tests**: `cd frontend && npm test`
+
 ### Docker
 - **Build**: `cd backend && docker build -t customer-health-api .`
 - **Run**: `docker run -p 8000:8000 customer-health-api`
@@ -40,6 +46,19 @@ backend/
 ├── data/           # Data access layer (repositories, ORM models)
 ├── schemas.py      # Pydantic schemas for API
 └── main.py         # FastAPI application entry point
+
+frontend/
+├── src/
+│   ├── components/  # React components
+│   │   ├── Dashboard/     # Dashboard components
+│   │   └── HealthScore/   # Health score detail components
+│   ├── services/    # API service layer (axios-based)
+│   ├── hooks/       # Custom React hooks for API state
+│   ├── types/       # TypeScript type definitions
+│   ├── utils/       # Utility functions
+│   └── App.tsx      # Main React application
+├── public/          # Static files
+└── package.json     # Frontend dependencies
 ```
 
 ### Key Domain Concepts
