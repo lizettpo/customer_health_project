@@ -7,8 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-# Database URL from environment variable - forcing PostgreSQL for testing
-DATABASE_URL = "postgresql://postgres:password123@localhost:5432/customer_health"
+DATABASE_URL = "sqlite:///./customer_health.db"
 
 # Create SQLAlchemy engine with different settings for SQLite vs PostgreSQL
 if "sqlite" in DATABASE_URL:

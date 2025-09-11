@@ -1,7 +1,11 @@
-import React from 'react';
-import { useDashboardStats } from '../../hooks';
-import { formatNumber, formatPercentage, formatDate } from '../../utils/formatters';
-import { getHealthStatusColor } from '../../utils/healthScore';
+import React from "react";
+import { useDashboardStats } from "../../hooks";
+import {
+  formatNumber,
+  formatPercentage,
+  formatDate,
+} from "../../utils/formatters";
+import { getHealthStatusColor } from "../../utils/healthScore";
 
 const DashboardStats = () => {
   const { stats, loading, error } = useDashboardStats();
@@ -31,24 +35,30 @@ const DashboardStats = () => {
 
   const statCards = [
     {
-      title: 'Total Customers',
+      title: "Total Customers",
       value: formatNumber(stats.total_customers),
-      color: '#3B82F6',
+      color: "#3B82F6",
     },
     {
-      title: 'Healthy',
-      value: `${formatNumber(stats.healthy_customers)} (${formatPercentage(stats.distribution.healthy_percent)})`,
-      color: getHealthStatusColor('healthy'),
+      title: "Healthy",
+      value: `${formatNumber(stats.healthy_customers)} (${formatPercentage(
+        stats.distribution.healthy_percent
+      )})`,
+      color: getHealthStatusColor("healthy"),
     },
     {
-      title: 'At Risk',
-      value: `${formatNumber(stats.at_risk_customers)} (${formatPercentage(stats.distribution.at_risk_percent)})`,
-      color: getHealthStatusColor('at_risk'),
+      title: "At Risk",
+      value: `${formatNumber(stats.at_risk_customers)} (${formatPercentage(
+        stats.distribution.at_risk_percent
+      )})`,
+      color: getHealthStatusColor("at_risk"),
     },
     {
-      title: 'Critical',
-      value: `${formatNumber(stats.critical_customers)} (${formatPercentage(stats.distribution.critical_percent)})`,
-      color: getHealthStatusColor('critical'),
+      title: "Critical",
+      value: `${formatNumber(stats.critical_customers)} (${formatPercentage(
+        stats.distribution.critical_percent
+      )})`,
+      color: getHealthStatusColor("critical"),
     },
   ];
 
@@ -57,9 +67,12 @@ const DashboardStats = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         {statCards.map((card, index) => (
           <div key={index} className="bg-white rounded-lg shadow p-6">
-            <div 
+            <div
               className="text-sm font-medium text-gray-600 mb-2"
-              style={{ borderLeft: `4px solid ${card.color}`, paddingLeft: '8px' }}
+              style={{
+                borderLeft: `4px solid ${card.color}`,
+                paddingLeft: "8px",
+              }}
             >
               {card.title}
             </div>
@@ -77,15 +90,17 @@ const DashboardStats = () => {
             Last updated: {formatDate(stats.last_updated)}
           </span>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <div className="text-sm text-gray-600 mb-1">Average Health Score</div>
+            <div className="text-sm text-gray-600 mb-1">
+              Average Health Score
+            </div>
             <div className="text-3xl font-bold text-blue-600">
               {stats.average_health_score.toFixed(1)}
             </div>
           </div>
-          
+
           <div>
             <div className="text-sm text-gray-600 mb-1">Health Coverage</div>
             <div className="text-3xl font-bold text-green-600">

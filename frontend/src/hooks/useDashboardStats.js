@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { HealthScoreService } from '../services/healthScoreService';
+import { useState, useEffect } from "react";
+import { HealthScoreService } from "../services/healthScoreService";
 
 export const useDashboardStats = () => {
   const [stats, setStats] = useState(null);
@@ -11,10 +11,12 @@ export const useDashboardStats = () => {
       setLoading(true);
       setError(null);
       const data = await HealthScoreService.getDashboardStats();
-      setStats(data);
+      setStats(data.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard stats');
-      console.error('Error in useDashboardStats:', err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch dashboard stats"
+      );
+      console.error("Error in useDashboardStats:", err);
     } finally {
       setLoading(false);
     }

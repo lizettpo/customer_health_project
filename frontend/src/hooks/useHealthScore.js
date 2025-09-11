@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { HealthScoreService } from '../services/healthScoreService';
+import { useState, useEffect } from "react";
+import { HealthScoreService } from "../services/healthScoreService";
 
 export const useHealthScore = (customerId) => {
   const [healthScore, setHealthScore] = useState(null);
@@ -8,15 +8,17 @@ export const useHealthScore = (customerId) => {
 
   const fetchHealthScore = async () => {
     if (!customerId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
       const data = await HealthScoreService.getCustomerHealthDetail(customerId);
-      setHealthScore(data);
+      setHealthScore(data.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch health score');
-      console.error('Error in useHealthScore:', err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch health score"
+      );
+      console.error("Error in useHealthScore:", err);
     } finally {
       setLoading(false);
     }
@@ -37,8 +39,10 @@ export const useHealthScore = (customerId) => {
       // Refresh the health score data
       await fetchHealthScore();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to calculate health score');
-      console.error('Error calculating health score:', err);
+      setError(
+        err instanceof Error ? err.message : "Failed to calculate health score"
+      );
+      console.error("Error calculating health score:", err);
     }
   };
 

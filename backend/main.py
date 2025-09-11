@@ -18,8 +18,23 @@ logger = logging.getLogger(__name__)
 
 # Create database tables (skip during testing)
 import os
-if not os.getenv("TESTING"):
-    Base.metadata.create_all(bind=engine)
+import os
+import time
+# if not os.getenv("TESTING"):
+#     max_retries = 5
+#     for attempt in range(max_retries):
+#         try:
+#             Base.metadata.create_all(bind=engine)
+#             logger.info("Database tables created successfully")
+#             break
+#         except Exception as e:
+#             if attempt < max_retries - 1:
+#                 logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
+#                 logger.info("Waiting for database to be ready...")
+#                 time.sleep(5)
+#             else:
+#                 logger.error(f"Failed to connect to database after {max_retries} attempts: {e}")
+#                 raise
 
 app = FastAPI(
     title="Customer Health Score API",
@@ -54,19 +69,56 @@ async def domain_error_handler(request, exc: DomainError):
     logger.error(f"Domain error: {exc}")
     return JSONResponse(status_code=400, content={"error": "Domain error", "detail": str(exc)})
 
+# @app.on_event("startup")
+# async def startup_event():
+#     """Initialize database with sample data"""
+#     # Skip sample data population during testing
+#     if os.getenv("TESTING"):
+#         logger.info("Skipping sample data population during testing")
+#         return
+        
+#     from sample_data import populate_sample_data
+    
+#     db = SessionLocal()
+#     try:
+#         from data.models import Customer
+#         customer_count = db.query(Customer).count()
+#         if customer_count == 0:
+#             logger.info("Populating database with sample data...")
+#             populate_sample_data(db)
+#             logger.info("Sample data populated successfully!")
+#         else:
+#             logger.info(f"Database already contains {customer_count} customers")
+#     except Exception as e:
+#         # Handle case where tables don't exist (e.g., during testing)
+#         logger.info(f"Skipping sample data population: {e}")
+#     finally:
+#         db.close()
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database with sample data"""
-    # Skip sample data population during testing
+    """Ensure tables exist, then optionally seed sample data."""
+    import os
+
+    # 2a) Import models FIRST so Base knows the tables
+    # Make sure data/models.py defines all your ORM classes and imports Base from database.py
+    from data import models  # noqa: F401 (import just for side-effects / table registration)
+
+    # 2b) Create tables for the CURRENT database (SQLite here)
+    Base.metadata.create_all(bind=engine)
+    logger.info("Ensured DB tables exist.")
+
+    # 2c) Skip seeding during tests
     if os.getenv("TESTING"):
         logger.info("Skipping sample data population during testing")
         return
-        
+
+    # 2d) Populate sample data if empty
     from sample_data import populate_sample_data
-    
+    from data.models import Customer
+
     db = SessionLocal()
     try:
-        from data.models import Customer
         customer_count = db.query(Customer).count()
         if customer_count == 0:
             logger.info("Populating database with sample data...")
@@ -75,10 +127,10 @@ async def startup_event():
         else:
             logger.info(f"Database already contains {customer_count} customers")
     except Exception as e:
-        # Handle case where tables don't exist (e.g., during testing)
         logger.info(f"Skipping sample data population: {e}")
     finally:
         db.close()
+
 
 # API Routes
 @app.get("/")

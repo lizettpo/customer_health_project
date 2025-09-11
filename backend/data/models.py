@@ -8,7 +8,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-Base = declarative_base()
+from database import Base   # <-- IMPORTANT: import Base from database.py (do NOT redefine)
 
 
 class Customer(Base):
