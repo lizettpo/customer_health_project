@@ -13,8 +13,19 @@ from domain.exceptions import CustomerNotFoundError
 
 class CustomerController:
     """Controller that LOADS DATA and keeps it in memory for coordination"""
+    _instance = None
+    _db = None
+    
+    def __new__(cls, db: Session):
+        if cls._instance is None or cls._db != db:
+            cls._instance = super().__new__(cls)
+            cls._db = db
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self, db: Session):
+        if self._initialized:
+            return
         self.customer_repo = CustomerRepository(db)
         self.event_repo = EventRepository(db)
         self.health_score_repo = HealthScoreRepository(db)
@@ -22,6 +33,7 @@ class CustomerController:
         # Data will be loaded here when needed
         self._loaded_customers = None
         self._loaded_health_scores = None
+        self._initialized = True
     
     def get_customers_with_health_scores(
         self,
