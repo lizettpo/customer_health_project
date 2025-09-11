@@ -1,247 +1,137 @@
-"""
-Sample data generation for the application
-"""
+from calendar import monthrange
+from data.models import Customer, CustomerEvent, HealthScore  # ensure HealthScore is imported
 
-import random
-import json
-from datetime import datetime, timedelta
-from faker import Faker
-from sqlalchemy.orm import Session
-
-# Import database models
-from data.models import Customer, CustomerEvent
-
-fake = Faker()
-Faker.seed(42)  # For reproducible data
-random.seed(42)
+def _billing_day(created_at: datetime, day: datetime) -> bool:
+    last_dom = monthrange(day.year, day.month)[1]
+    bill_dom = min(created_at.day, last_dom)
+    return day >= created_at and day.day == bill_dom
 
 def populate_sample_data(db: Session):
-    """Generate realistic sample data for 50+ customers with 3+ months of history"""
-    
-    # Company data for realistic customer profiles
-    companies_data = [
-        # Enterprise customers
-        {"name": "TechCorp Solutions", "segment": "enterprise", "industry": "Technology", "employees": 5000, "revenue": 50000},
-        {"name": "Global Finance Inc", "segment": "enterprise", "industry": "Finance", "employees": 12000, "revenue": 100000},
-        {"name": "MedTech Industries", "segment": "enterprise", "industry": "Healthcare", "employees": 3500, "revenue": 75000},
-        {"name": "RetailChain LLC", "segment": "enterprise", "industry": "Retail", "employees": 8000, "revenue": 45000},
-        {"name": "Manufacturing Plus", "segment": "enterprise", "industry": "Manufacturing", "employees": 6000, "revenue": 60000},
-        
-        # SMB customers
-        {"name": "Local Marketing Agency", "segment": "smb", "industry": "Marketing", "employees": 45, "revenue": 5000},
-        {"name": "Downtown Law Firm", "segment": "smb", "industry": "Legal", "employees": 25, "revenue": 8000},
-        {"name": "Creative Design Studio", "segment": "smb", "industry": "Design", "employees": 30, "revenue": 4500},
-        {"name": "Regional Consulting", "segment": "smb", "industry": "Consulting", "employees": 60, "revenue": 12000},
-        {"name": "Mid-Size Software Co", "segment": "smb", "industry": "Technology", "employees": 120, "revenue": 15000},
-        
-        # Startup customers
-        {"name": "AI Startup Alpha", "segment": "startup", "industry": "AI/ML", "employees": 8, "revenue": 500},
-        {"name": "FinTech Beta", "segment": "startup", "industry": "Finance", "employees": 12, "revenue": 800},
-        {"name": "Health App Gamma", "segment": "startup", "industry": "Healthcare", "employees": 6, "revenue": 300},
-        {"name": "EdTech Delta", "segment": "startup", "industry": "Education", "employees": 15, "revenue": 1200},
-        {"name": "Green Energy Epsilon", "segment": "startup", "industry": "Energy", "employees": 10, "revenue": 600},
-    ]
-    
     customers = []
-    start_date = datetime.utcnow() - timedelta(days=120)  # 4 months of history
-    
-    # Create diverse customer base (50+ customers)
+    start_date = datetime.utcnow() - timedelta(days=120)
+
     for i in range(55):
-        if i < len(companies_data):
-            company_info = companies_data[i]
-        else:
-            # Generate additional companies
-            company_info = {
-                "name": fake.company(),
-                "segment": random.choice(["enterprise", "smb", "startup"]),
-                "industry": random.choice(["Technology", "Finance", "Healthcare", "Retail", "Manufacturing", "Education"]),
-                "employees": random.randint(5, 10000),
-                "revenue": random.randint(300, 100000)
-            }
-        
-        # Create customer with realistic data
+        company_info = companies_data[i] if i < len(companies_data) else {
+            "name": fake.company(),
+            "segment": random.choice(["enterprise", "smb", "startup"]),
+            "industry": random.choice(["Technology","Finance","Healthcare","Retail","Manufacturing","Education"]),
+            "employees": random.randint(5, 10000),
+            "revenue": random.randint(300, 100000)
+        }
+
         customer = Customer(
             name=fake.name(),
-            email=fake.email(),
+            email=fake.unique.email(),  # ensure uniqueness
             company=company_info["name"],
-            segment=company_info["segment"],
+            segment=company_info["segment"].lower(),  # normalize if your enum expects lowercase
             industry=company_info["industry"],
             employee_count=company_info["employees"],
             monthly_revenue=company_info["revenue"],
-            plan_type=_get_plan_type(company_info["segment"]),
+            plan_type=_get_plan_type(company_info["segment"].lower()),
             created_at=start_date + timedelta(days=random.randint(0, 30)),
-            last_activity=datetime.utcnow() - timedelta(days=random.randint(0, 7))
+            last_activity=start_date  # will be updated after events
         )
-        
         db.add(customer)
         customers.append(customer)
-    
-    # Commit customers first to get IDs
-    db.commit()
-    
-    # Generate realistic event history for each customer
-    for customer in customers:
-        _generate_customer_events(db, customer, start_date)
-    
-    db.commit()
 
-def _get_plan_type(segment: str) -> str:
-    """Get appropriate plan type based on segment"""
-    if segment == "enterprise":
-        return random.choice(["enterprise", "pro"])
-    elif segment == "smb":
-        return random.choice(["pro", "basic"])
-    else:  # startup
-        return random.choice(["basic", "pro"])
+    db.commit()  # get IDs
+
+    for customer in customers:
+        last_ts = _generate_customer_events(db, customer, start_date)
+
+        # Persist health level (example via HealthScore table)
+        status, score = _derive_health_status_and_score(customer)
+        db.add(HealthScore(
+            customer_id=customer.id,
+            score=score,
+            status=status,
+            factors={},             # or fill with your factor breakdown
+            recommendations=[],
+            calculated_at=datetime.utcnow()
+        ))
+
+        # Make last_activity consistent with generated data
+        customer.last_activity = last_ts or customer.created_at
+        db.add(customer)
+
+    db.commit()
 
 def _generate_customer_events(db: Session, customer: Customer, start_date: datetime):
-    """Generate realistic event history for a customer"""
-    
-    # Determine customer health profile (affects event generation)
     health_profile = _determine_health_profile(customer)
-    
-    current_date = start_date
+
+    # start generating no earlier than the customer's creation
+    current_date = max(start_date, customer.created_at).replace(hour=0, minute=0, second=0, microsecond=0)
     end_date = datetime.utcnow()
-    
-    # Generate events over time
+    last_event_ts = None
+
     while current_date < end_date:
-        # Login events - frequency based on health profile
+        # Login
         if _should_generate_event(health_profile, "login", current_date):
-            db.add(CustomerEvent(
-                customer_id=customer.id,
-                event_type="login",
-                event_data={"ip_address": fake.ipv4(), "user_agent": "web"},
-                timestamp=current_date + timedelta(hours=random.randint(8, 18))
-            ))
-        
-        # Feature usage events
+            ts = current_date + timedelta(hours=random.randint(8, 18))
+            db.add(CustomerEvent(customer_id=customer.id, event_type="login",
+                                 event_data={"ip_address": fake.ipv4(), "user_agent": "web"},
+                                 timestamp=ts))
+            last_event_ts = max(last_event_ts or ts, ts)
+
+        # Feature use
         if _should_generate_event(health_profile, "feature_use", current_date):
-            features = [
-                "dashboard", "analytics", "reports", "user_management", 
-                "api_keys", "integrations", "billing", "notifications",
-                "advanced_search", "export_data", "collaboration", "automation"
-            ]
-            
-            # Healthy customers use more diverse features
-            if health_profile == "healthy":
-                selected_features = random.sample(features, random.randint(2, 5))
-            elif health_profile == "at_risk":
-                selected_features = random.sample(features, random.randint(1, 3))
-            else:  # critical
-                selected_features = random.sample(features[:4], random.randint(1, 2))
-            
-            for feature in selected_features:
-                db.add(CustomerEvent(
-                    customer_id=customer.id,
-                    event_type="feature_use",
-                    event_data={"feature_name": feature, "duration_minutes": random.randint(2, 30)},
-                    timestamp=current_date + timedelta(hours=random.randint(9, 17))
-                ))
-        
-        # Support ticket events
+            features = ["dashboard","analytics","reports","user_management","api_keys","integrations",
+                        "billing","notifications","advanced_search","export_data","collaboration","automation"]
+            pool = features if health_profile == "healthy" else (features[:8] if health_profile == "at_risk" else features[:4])
+            for feature in random.sample(pool, random.randint(2, 5) if health_profile=="healthy"
+                                                else random.randint(1, 3) if health_profile=="at_risk"
+                                                else random.randint(1, 2)):
+                ts = current_date + timedelta(hours=random.randint(9, 17))
+                db.add(CustomerEvent(customer_id=customer.id, event_type="feature_use",
+                                     event_data={"feature_name": feature, "duration_minutes": random.randint(2, 30)},
+                                     timestamp=ts))
+                last_event_ts = max(last_event_ts, ts) if last_event_ts else ts
+
+        # Support ticket
         if _should_generate_event(health_profile, "support_ticket", current_date):
-            ticket_types = ["bug_report", "feature_request", "billing_question", "technical_issue", "account_help"]
-            priorities = ["low", "medium", "high", "urgent"]
-            
-            priority_weights = {
-                "healthy": [0.4, 0.4, 0.15, 0.05],
-                "at_risk": [0.2, 0.3, 0.3, 0.2],
-                "critical": [0.1, 0.2, 0.4, 0.3]
-            }
-            
-            db.add(CustomerEvent(
-                customer_id=customer.id,
-                event_type="support_ticket",
-                event_data={
-                    "ticket_type": random.choice(ticket_types),
-                    "priority": random.choices(priorities, weights=priority_weights[health_profile])[0],
-                    "status": random.choice(["open", "in_progress", "resolved"])
-                },
-                timestamp=current_date + timedelta(hours=random.randint(10, 16))
-            ))
-        
-        # Payment events - monthly billing cycles
-        if current_date.day == customer.created_at.day and current_date >= customer.created_at:
-            payment_status = _get_payment_status(health_profile)
-            
-            db.add(CustomerEvent(
-                customer_id=customer.id,
-                event_type="payment",
-                event_data={
-                    "amount": customer.monthly_revenue,
-                    "status": payment_status,
-                    "payment_method": random.choice(["credit_card", "bank_transfer", "check"]),
-                    "invoice_id": f"INV-{random.randint(10000, 99999)}"
-                },
-                timestamp=current_date + timedelta(hours=random.randint(1, 5))
-            ))
-        
-        # API usage events
+            priorities = ["low","medium","high","urgent"]
+            w = {"healthy":[0.4,0.4,0.15,0.05],"at_risk":[0.2,0.3,0.3,0.2],"critical":[0.1,0.2,0.4,0.3]}[health_profile]
+            ts = current_date + timedelta(hours=random.randint(10, 16))
+            db.add(CustomerEvent(customer_id=customer.id, event_type="support_ticket",
+                                 event_data={"ticket_type": random.choice(["bug_report","feature_request","billing_question","technical_issue","account_help"]),
+                                             "priority": random.choices(priorities, weights=w)[0],
+                                             "status": random.choice(["open","in_progress","resolved"])},
+                                 timestamp=ts))
+            last_event_ts = max(last_event_ts, ts) if last_event_ts else ts
+
+        # Payment (monthly with end-of-month fallback)
+        if _billing_day(customer.created_at, current_date):
+            ts = current_date + timedelta(hours=random.randint(1, 5))
+            db.add(CustomerEvent(customer_id=customer.id, event_type="payment",
+                                 event_data={"amount": customer.monthly_revenue,
+                                             "status": _get_payment_status(health_profile),
+                                             "payment_method": random.choice(["credit_card","bank_transfer","check"]),
+                                             "invoice_id": f"INV-{random.randint(10000, 99999)}"},
+                                 timestamp=ts))
+            last_event_ts = max(last_event_ts, ts) if last_event_ts else ts
+
+        # API calls
         if _should_generate_event(health_profile, "api_call", current_date):
-            api_endpoints = [
-                "/api/users", "/api/data", "/api/analytics", "/api/reports",
-                "/api/integrations", "/api/webhooks", "/api/billing"
-            ]
-            
-            # Generate multiple API calls per day for active customers
-            num_calls = _get_api_calls_per_day(customer.segment, health_profile)
-            
-            for _ in range(num_calls):
-                db.add(CustomerEvent(
-                    customer_id=customer.id,
-                    event_type="api_call",
-                    event_data={
-                        "endpoint": random.choice(api_endpoints),
-                        "method": random.choice(["GET", "POST", "PUT", "DELETE"]),
-                        "response_code": random.choices([200, 201, 400, 401, 500], weights=[0.7, 0.1, 0.1, 0.05, 0.05])[0],
-                        "response_time_ms": random.randint(50, 2000)
-                    },
-                    timestamp=current_date + timedelta(
-                        hours=random.randint(0, 23),
-                        minutes=random.randint(0, 59)
-                    )
-                ))
-        
+            for _ in range(_get_api_calls_per_day(customer.segment, health_profile)):
+                ts = current_date + timedelta(hours=random.randint(0, 23), minutes=random.randint(0, 59))
+                db.add(CustomerEvent(customer_id=customer.id, event_type="api_call",
+                                     event_data={"endpoint": random.choice(["/api/users","/api/data","/api/analytics","/api/reports","/api/integrations","/api/webhooks","/api/billing"]),
+                                                 "method": random.choice(["GET","POST","PUT","DELETE"]),
+                                                 "response_code": random.choices([200,201,400,401,500], weights=[0.7,0.1,0.1,0.05,0.05])[0],
+                                                 "response_time_ms": random.randint(50, 2000)},
+                                     timestamp=ts))
+                last_event_ts = max(last_event_ts, ts) if last_event_ts else ts
+
         current_date += timedelta(days=1)
 
-def _determine_health_profile(customer: Customer) -> str:
-    """Determine health profile based on customer characteristics"""
-    if customer.segment == "enterprise":
-        return random.choices(["healthy", "at_risk", "critical"], weights=[0.7, 0.2, 0.1])[0]
-    elif customer.segment == "smb":
-        return random.choices(["healthy", "at_risk", "critical"], weights=[0.5, 0.35, 0.15])[0]
-    else:  # startup
-        return random.choices(["healthy", "at_risk", "critical"], weights=[0.4, 0.4, 0.2])[0]
+    return last_event_ts
 
-def _should_generate_event(health_profile: str, event_type: str, current_date: datetime) -> bool:
-    """Determine if an event should be generated"""
-    probabilities = {
-        "login": {"healthy": 0.8, "at_risk": 0.4, "critical": 0.15},
-        "feature_use": {"healthy": 0.7, "at_risk": 0.3, "critical": 0.1},
-        "support_ticket": {"healthy": 0.05, "at_risk": 0.15, "critical": 0.3},
-        "api_call": {"healthy": 0.9, "at_risk": 0.6, "critical": 0.2}
-    }
-    
-    # Weekend adjustments
-    if current_date.weekday() >= 5:
-        for profile in probabilities[event_type]:
-            probabilities[event_type][profile] *= 0.3
-    
-    return random.random() < probabilities[event_type][health_profile]
+def _derive_health_status_and_score(customer: Customer):
+    # Example: map segments/usage tendencies to a score distribution
+    profile = _determine_health_profile(customer)
+    if profile == "healthy":
+        return "healthy", random.randint(80, 100)
+    if profile == "at_risk":
+        return "at_risk", random.randint(50, 79)
+    return "critical", random.randint(20, 49)
 
-def _get_payment_status(health_profile: str) -> str:
-    """Get payment status based on health profile"""
-    if health_profile == "healthy":
-        return random.choices(["paid_on_time", "paid_late"], weights=[0.95, 0.05])[0]
-    elif health_profile == "at_risk":
-        return random.choices(["paid_on_time", "paid_late"], weights=[0.8, 0.2])[0]
-    else:  # critical
-        return random.choices(["paid_on_time", "paid_late", "overdue"], weights=[0.6, 0.3, 0.1])[0]
-
-def _get_api_calls_per_day(segment: str, health_profile: str) -> int:
-    """Get number of API calls per day"""
-    base_calls = {"enterprise": 50, "smb": 20, "startup": 8}
-    multipliers = {"healthy": 1.0, "at_risk": 0.6, "critical": 0.3}
-    
-    calls = int(base_calls[segment] * multipliers[health_profile])
-    return random.randint(max(1, calls - 5), calls + 10)
