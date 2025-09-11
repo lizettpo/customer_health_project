@@ -14,29 +14,20 @@ from domain.exceptions import CustomerNotFoundError
 
 class HealthScoreController:
     """Controller that LOADS DATA and coordinates with domain logic"""
-    _instance = None
-    _initialized = False
-    
-    def __new__(cls, db: Session = None):
-        if cls._instance is None:
-            cls._instance = super(HealthScoreController, cls).__new__(cls)
-        return cls._instance
     
     def __init__(self, db: Session):
-        if not self._initialized:
-            self.customer_repo = CustomerRepository(db)
-            self.event_repo = EventRepository(db)
-            self.health_score_repo = HealthScoreRepository(db)
-            self.calculator = HealthScoreCalculator()
-            
-            # Cache for loaded data
-            self._dashboard_data = None
-            self._last_dashboard_load = None
-            HealthScoreController._initialized = True
+        self.customer_repo = CustomerRepository(db)
+        self.event_repo = EventRepository(db)
+        self.health_score_repo = HealthScoreRepository(db)
+        self.calculator = HealthScoreCalculator()
+        
+        # Cache for loaded data
+        self._dashboard_data = None
+        self._last_dashboard_load = None
     
     def get_customer_health_detail(self, customer_id: int) -> Dict[str, Any]:
         """
-        LOADS ALL DATA: Customer, events, calculates health, loads history - coordinates everything
+        LOADS ALL DATA: Customer, events, calculates health using same method as list view
         """
         
         # 🔥 LOAD CUSTOMER DATA
@@ -47,16 +38,10 @@ class HealthScoreController:
         # 🔥 LOAD EVENTS DATA
         loaded_events = self.event_repo.get_recent_events(customer_id, days=90)
         
-        # 🔥 COORDINATE WITH DOMAIN - Calculate health score using loaded data
-        calculated_health_score = self.calculator.calculate_health_score(loaded_customer, loaded_events)
+        # 🔥 USE SAME CALCULATION METHOD as customer list
+        saved_health_score = self.calculate_and_save_health_score(customer_id)
         
-        # 🔥 SAVE CALCULATED DATA
-        saved_health_score = self.health_score_repo.save_health_score(calculated_health_score)
-        
-        # 🔥 LOAD HISTORICAL DATA
-        loaded_historical_scores = self.health_score_repo.get_historical_scores(customer_id, limit=30)
-        
-        # 🔥 COORDINATE ALL LOADED DATA - Combine everything in memory
+        # 🔥 COORDINATE ALL LOADED DATA - Combine everything in memory (no historical data needed)
         coordinated_data = {
             "customer_id": loaded_customer.id,
             "customer_name": loaded_customer.name,
@@ -73,18 +58,11 @@ class HealthScoreController:
                 for name, factor in saved_health_score.factors.items()
             },
             "calculated_at": saved_health_score.calculated_at.isoformat() if saved_health_score.calculated_at else None,
-            "historical_scores": [
-                {
-                    "score": hs.score,
-                    "status": hs.status,
-                    "calculated_at": hs.calculated_at.isoformat() if hs.calculated_at else None
-                }
-                for hs in loaded_historical_scores
-            ],
+            "historical_scores": [],  # No history needed
             "recommendations": saved_health_score.recommendations,
             "data_summary": {
                 "events_analyzed": len(loaded_events),
-                "history_points": len(loaded_historical_scores),
+                "history_points": 0,  # No history points
                 "customer_segment": loaded_customer.segment
             }
         }

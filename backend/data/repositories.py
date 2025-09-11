@@ -138,7 +138,7 @@ class HealthScoreRepository:
         self.db = db
     
     def save_health_score(self, health_score: HealthScore) -> HealthScore:
-        """Save a health score to database"""
+        """Save a health score to database - updates existing or creates new (one per customer only)"""
         # Convert factor scores to JSON format
         factors_json = {}
         for name, factor_score in health_score.factors.items():
@@ -150,20 +150,36 @@ class HealthScoreRepository:
                 **factor_score.metadata
             }
         
-        db_score = HealthScoreModel(
-            customer_id=health_score.customer_id,
-            score=health_score.score,
-            status=health_score.status,
-            factors=factors_json,
-            recommendations=health_score.recommendations,
-            calculated_at=health_score.calculated_at
-        )
+        # Check if health score already exists for this customer
+        existing_score = self.db.query(HealthScoreModel).filter(
+            HealthScoreModel.customer_id == health_score.customer_id
+        ).first()
         
-        self.db.add(db_score)
-        self.db.commit()
-        self.db.refresh(db_score)
-        
-        return self._to_domain_model(db_score)
+        if existing_score:
+            # UPDATE existing record
+            existing_score.score = health_score.score
+            existing_score.status = health_score.status
+            existing_score.factors = factors_json
+            existing_score.recommendations = health_score.recommendations
+            existing_score.calculated_at = health_score.calculated_at
+            
+            self.db.commit()
+            self.db.refresh(existing_score)
+            return self._to_domain_model(existing_score)
+        else:
+            # CREATE new record (first time)
+            db_score = HealthScoreModel(
+                customer_id=health_score.customer_id,
+                score=health_score.score,
+                status=health_score.status,
+                factors=factors_json,
+                recommendations=health_score.recommendations,
+                calculated_at=health_score.calculated_at
+            )
+            self.db.add(db_score)
+            self.db.commit()
+            self.db.refresh(db_score)
+            return self._to_domain_model(db_score)
     
     def get_latest_by_customer(self, customer_id: int) -> Optional[HealthScore]:
         """Get latest health score for a customer"""

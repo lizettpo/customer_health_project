@@ -53,21 +53,25 @@ class PaymentTimelinessFactor(HealthFactor):
         on_time_payments = 0
         late_payments = 0
         overdue_payments = 0
+        failed_payments = 0
         payment_methods = {}
         total_amount = 0
         
         for event in payment_events:
             if event.event_data:
                 status = event.get_payment_status()
-                method = event.event_data.get('payment_method', 'unknown')
+                method = event.event_data.get('method', event.event_data.get('payment_method', 'unknown'))
                 amount = event.event_data.get('amount', 0)
                 
-                if status == 'paid_on_time':
+                # Treat "completed" and "paid_on_time" as successful payments
+                if status in ['paid_on_time', 'completed']:
                     on_time_payments += 1
-                elif status == 'paid_late':
+                elif status in ['paid_late', 'pending']:
                     late_payments += 1
                 elif status == 'overdue':
                     overdue_payments += 1
+                elif status == 'failed':
+                    failed_payments += 1
                 
                 payment_methods[method] = payment_methods.get(method, 0) + 1
                 total_amount += amount
@@ -76,15 +80,26 @@ class PaymentTimelinessFactor(HealthFactor):
         on_time_percentage = (on_time_payments / total_payments) * 100
         average_amount = total_amount / total_payments if total_payments > 0 else 0
         
-        # Score based on on-time percentage with penalties
+        # Score based on on-time percentage with different penalties
         score = on_time_percentage
+        
+        # Overdue payments are worse than failed payments
         if overdue_payments > 0:
-            score = max(0.0, score - (overdue_payments * 15))
+            score = max(0.0, score - (overdue_payments * 20))  # 20 point penalty per overdue
+        
+        # Failed payments get a lighter penalty (could be system issues)
+        if failed_payments > 0:
+            score = max(0.0, score - (failed_payments * 10))  # 10 point penalty per failed
+        
+        # Late payments get minimal penalty
+        if late_payments > 0:
+            score = max(0.0, score - (late_payments * 5))   # 5 point penalty per late
         
         metadata = {
             "total_payments": total_payments,
             "late_payments": late_payments,
             "overdue_payments": overdue_payments,
+            "failed_payments": failed_payments,
             "on_time_percentage": round(on_time_percentage, 1),
             "payment_methods": payment_methods,
             "average_amount": round(average_amount, 2)

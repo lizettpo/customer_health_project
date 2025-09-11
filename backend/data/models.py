@@ -53,7 +53,7 @@ class HealthScore(Base):
     __tablename__ = "health_scores"
     
     id = Column(Integer, primary_key=True, index=True)
-    customer_id = Column(Integer, ForeignKey("customers.id"))
+    customer_id = Column(Integer, ForeignKey("customers.id"), unique=True)  # Only one score per customer
     score = Column(Float, nullable=False)  # 0-100 score
     status = Column(String, nullable=False)  # healthy, at_risk, critical
     factors = Column(JSON)  # Breakdown of score factors

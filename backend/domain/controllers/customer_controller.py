@@ -13,51 +13,39 @@ from domain.exceptions import CustomerNotFoundError
 
 class CustomerController:
     """Controller that LOADS DATA and keeps it in memory for coordination"""
-    _instance = None
-    _initialized = False
-    
-    def __new__(cls, db: Session = None):
-        if cls._instance is None:
-            cls._instance = super(CustomerController, cls).__new__(cls)
-        return cls._instance
     
     def __init__(self, db: Session):
-        if not self._initialized:
-            self.customer_repo = CustomerRepository(db)
-            self.event_repo = EventRepository(db)
-            self.health_score_repo = HealthScoreRepository(db)
-            
-            # Data will be loaded here when needed
-            self._loaded_customers = None
-            self._loaded_health_scores = None
-            CustomerController._initialized = True
+        self.customer_repo = CustomerRepository(db)
+        self.event_repo = EventRepository(db)
+        self.health_score_repo = HealthScoreRepository(db)
+        
+        # Data will be loaded here when needed
+        self._loaded_customers = None
+        self._loaded_health_scores = None
     
     def get_customers_with_health_scores(
         self,
         health_status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        LOADS DATA ONCE: Load customers and health scores, then coordinate in memory
+        LOADS DATA ONCE: Load customers and use health score controller for calculations
         """
         
         # 🔥 LOAD CUSTOMERS DATA - Load once and store
         if health_status:
             loaded_customers = self.customer_repo.get_by_health_status(health_status)
-            # Apply pagination to loaded data
         else:
             loaded_customers = self.customer_repo.get_all()
         
-        # 🔥 LOAD ALL HEALTH SCORES DATA - Load once for all customers
-        customer_ids = [customer.id for customer in loaded_customers]
-        loaded_health_scores = {}
-        for customer_id in customer_ids:
-            health_score = self.health_score_repo.get_latest_by_customer(customer_id)
-            loaded_health_scores[customer_id] = health_score
+        # 🔥 USE HEALTH SCORE CONTROLLER - Same logic as detail view
+        from domain.controllers.health_score_controller import HealthScoreController
+        health_controller = HealthScoreController(self.customer_repo.db)
         
         # 🔥 COORDINATE LOADED DATA - Work with loaded data in memory
         result = []
         for customer in loaded_customers:
-            health_score = loaded_health_scores.get(customer.id)
+            # Use the same calculation method as detail view
+            health_score = health_controller.calculate_and_save_health_score(customer.id)
             
             # FORMAT loaded data
             customer_data = {

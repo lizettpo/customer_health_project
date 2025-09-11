@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useHealthScore } from "../../hooks";
 import HealthFactorCard from "./HealthFactorCard";
-import HistoricalChart from "./HistoricalChart";
 import CustomerActivityForm from "./CustomerActivityForm";
 import { formatDate, formatScore, formatNumber } from "../../utils/formatters";
 import {
@@ -288,8 +287,6 @@ const CustomerHealthDetail = ({ customerId }) => {
         </div>
       )}
 
-      {/* Historical Data */}
-      <HistoricalChart scores={healthScore.historical_scores} />
     </div>
   );
 };
