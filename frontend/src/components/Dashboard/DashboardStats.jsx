@@ -3,7 +3,7 @@ import { useDashboardStats } from '../../hooks';
 import { formatNumber, formatPercentage, formatDate } from '../../utils/formatters';
 import { getHealthStatusColor } from '../../utils/healthScore';
 
-const DashboardStats: React.FC = () => {
+const DashboardStats = () => {
   const { stats, loading, error } = useDashboardStats();
 
   if (loading) {

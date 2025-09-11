@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import DashboardStats from './DashboardStats';
 import CustomersList from './CustomersList';
 import CustomerHealthDetail from '../HealthScore/CustomerHealthDetail';
-import { Customer } from '../../types';
 
-const Dashboard: React.FC = () => {
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+const Dashboard = () => {
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-  const handleCustomerSelect = (customer: Customer) => {
+  const handleCustomerSelect = (customer) => {
     setSelectedCustomer(customer);
   };
 

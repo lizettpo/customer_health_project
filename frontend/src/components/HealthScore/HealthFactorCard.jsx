@@ -1,15 +1,9 @@
 import React from 'react';
-import { HealthFactor } from '../../types';
 import { formatScore } from '../../utils/formatters';
 import { getHealthScoreColor } from '../../utils/healthScore';
 
-interface HealthFactorCardProps {
-  title: string;
-  factor: HealthFactor;
-  icon?: React.ReactNode;
-}
 
-const HealthFactorCard: React.FC<HealthFactorCardProps> = ({ title, factor, icon }) => {
+const HealthFactorCard = ({ title, factor, icon }) => {
   const scoreColor = getHealthScoreColor(factor.score);
 
   return (

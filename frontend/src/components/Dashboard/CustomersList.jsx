@@ -2,14 +2,10 @@ import React, { useState } from 'react';
 import { useCustomers } from '../../hooks';
 import { formatDate, formatScore } from '../../utils/formatters';
 import { getHealthStatusColor, formatHealthStatus } from '../../utils/healthScore';
-import { Customer } from '../../types';
 
-interface CustomersListProps {
-  onCustomerSelect?: (customer: Customer) => void;
-}
 
-const CustomersList: React.FC<CustomersListProps> = ({ onCustomerSelect }) => {
-  const [healthStatusFilter, setHealthStatusFilter] = useState<'all' | 'healthy' | 'at_risk' | 'critical'>('all');
+const CustomersList = ({ onCustomerSelect }) => {
+  const [healthStatusFilter, setHealthStatusFilter] = useState('all');
   const [page, setPage] = useState(0);
   const limit = 10;
 
@@ -53,7 +49,7 @@ const CustomersList: React.FC<CustomersListProps> = ({ onCustomerSelect }) => {
           <select
             value={healthStatusFilter}
             onChange={(e) => {
-              setHealthStatusFilter(e.target.value as any);
+              setHealthStatusFilter(e.target.value);
               setPage(0);
             }}
             className="border border-gray-300 rounded-md px-3 py-1 text-sm"

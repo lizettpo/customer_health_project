@@ -1,13 +1,9 @@
 import React from 'react';
-import { HistoricalScore } from '../../types';
 import { formatDate, formatScore } from '../../utils/formatters';
 import { getHealthScoreColor } from '../../utils/healthScore';
 
-interface HistoricalChartProps {
-  scores: HistoricalScore[];
-}
 
-const HistoricalChart: React.FC<HistoricalChartProps> = ({ scores }) => {
+const HistoricalChart = ({ scores }) => {
   if (!scores || scores.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">

@@ -5,11 +5,8 @@ import HistoricalChart from './HistoricalChart';
 import { formatDate, formatScore, formatNumber } from '../../utils/formatters';
 import { getHealthScoreColor, formatHealthStatus } from '../../utils/healthScore';
 
-interface CustomerHealthDetailProps {
-  customerId: number;
-}
 
-const CustomerHealthDetail: React.FC<CustomerHealthDetailProps> = ({ customerId }) => {
+const CustomerHealthDetail = ({ customerId }) => {
   const { healthScore, loading, error, refetch, calculateScore } = useHealthScore(customerId);
 
   if (loading) {
@@ -167,7 +164,7 @@ const CustomerHealthDetail: React.FC<CustomerHealthDetailProps> = ({ customerId 
               key={key}
               title={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
               factor={factor}
-              icon={factorIcons[key as keyof typeof factorIcons]}
+              icon={factorIcons[key]}
             />
           ))}
         </div>
