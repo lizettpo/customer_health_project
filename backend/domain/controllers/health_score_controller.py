@@ -14,16 +14,25 @@ from domain.exceptions import CustomerNotFoundError
 
 class HealthScoreController:
     """Controller that LOADS DATA and coordinates with domain logic"""
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls, db: Session = None):
+        if cls._instance is None:
+            cls._instance = super(HealthScoreController, cls).__new__(cls)
+        return cls._instance
     
     def __init__(self, db: Session):
-        self.customer_repo = CustomerRepository(db)
-        self.event_repo = EventRepository(db)
-        self.health_score_repo = HealthScoreRepository(db)
-        self.calculator = HealthScoreCalculator()
-        
-        # Cache for loaded data
-        self._dashboard_data = None
-        self._last_dashboard_load = None
+        if not self._initialized:
+            self.customer_repo = CustomerRepository(db)
+            self.event_repo = EventRepository(db)
+            self.health_score_repo = HealthScoreRepository(db)
+            self.calculator = HealthScoreCalculator()
+            
+            # Cache for loaded data
+            self._dashboard_data = None
+            self._last_dashboard_load = None
+            HealthScoreController._initialized = True
     
     def get_customer_health_detail(self, customer_id: int) -> Dict[str, Any]:
         """
@@ -63,12 +72,12 @@ class HealthScoreController:
                 }
                 for name, factor in saved_health_score.factors.items()
             },
-            "calculated_at": saved_health_score.calculated_at,
+            "calculated_at": saved_health_score.calculated_at.isoformat() if saved_health_score.calculated_at else None,
             "historical_scores": [
                 {
                     "score": hs.score,
                     "status": hs.status,
-                    "calculated_at": hs.calculated_at
+                    "calculated_at": hs.calculated_at.isoformat() if hs.calculated_at else None
                 }
                 for hs in loaded_historical_scores
             ],
@@ -117,7 +126,7 @@ class HealthScoreController:
                 "at_risk_percent": round((loaded_at_risk_count / total_with_scores * 100), 1) if total_with_scores > 0 else 0,
                 "critical_percent": round((loaded_critical_count / total_with_scores * 100), 1) if total_with_scores > 0 else 0
             },
-            "last_updated": now
+            "last_updated": now.isoformat()
         }
         self._last_dashboard_load = now
         

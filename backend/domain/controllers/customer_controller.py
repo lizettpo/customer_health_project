@@ -13,15 +13,24 @@ from domain.exceptions import CustomerNotFoundError
 
 class CustomerController:
     """Controller that LOADS DATA and keeps it in memory for coordination"""
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls, db: Session = None):
+        if cls._instance is None:
+            cls._instance = super(CustomerController, cls).__new__(cls)
+        return cls._instance
     
     def __init__(self, db: Session):
-        self.customer_repo = CustomerRepository(db)
-        self.event_repo = EventRepository(db)
-        self.health_score_repo = HealthScoreRepository(db)
-        
-        # Data will be loaded here when needed
-        self._loaded_customers = None
-        self._loaded_health_scores = None
+        if not self._initialized:
+            self.customer_repo = CustomerRepository(db)
+            self.event_repo = EventRepository(db)
+            self.health_score_repo = HealthScoreRepository(db)
+            
+            # Data will be loaded here when needed
+            self._loaded_customers = None
+            self._loaded_health_scores = None
+            CustomerController._initialized = True
     
     def get_customers_with_health_scores(
         self,
@@ -64,8 +73,8 @@ class CustomerController:
                 "email": customer.email,
                 "company": customer.company,
                 "segment": customer.segment,
-                "created_at": customer.created_at,
-                "last_activity": customer.last_activity,
+                "created_at": customer.created_at.isoformat() if customer.created_at else None,
+                "last_activity": customer.last_activity.isoformat() if customer.last_activity else None,
                 "health_score": health_score.score if health_score else 0,
                 "health_status": health_score.status if health_score else "unknown"
             }
@@ -155,7 +164,7 @@ class CustomerController:
             "customer_id": loaded_customer.id,
             "customer_name": loaded_customer.name,
             "event_type": event_type,
-            "timestamp": saved_event.timestamp
+            "timestamp": saved_event.timestamp.isoformat() if saved_event.timestamp else None
         }
     
     def get_customer_count(self) -> int:

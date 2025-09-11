@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -16,8 +16,10 @@ from schemas import CustomerListResponse, HealthScoreDetailResponse, CustomerEve
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables (skip during testing)
+import os
+if not os.getenv("TESTING"):
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Customer Health Score API",
@@ -45,16 +47,21 @@ def get_db():
 # Exception handlers
 @app.exception_handler(CustomerNotFoundError)
 async def customer_not_found_handler(request, exc: CustomerNotFoundError):
-    return HTTPException(status_code=404, detail=str(exc))
+    return JSONResponse(status_code=404, content={"error": "Customer not found", "detail": str(exc)})
 
 @app.exception_handler(DomainError)
 async def domain_error_handler(request, exc: DomainError):
     logger.error(f"Domain error: {exc}")
-    return HTTPException(status_code=400, detail=str(exc))
+    return JSONResponse(status_code=400, content={"error": "Domain error", "detail": str(exc)})
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize database with sample data"""
+    # Skip sample data population during testing
+    if os.getenv("TESTING"):
+        logger.info("Skipping sample data population during testing")
+        return
+        
     from sample_data import populate_sample_data
     
     db = SessionLocal()
@@ -67,13 +74,16 @@ async def startup_event():
             logger.info("Sample data populated successfully!")
         else:
             logger.info(f"Database already contains {customer_count} customers")
+    except Exception as e:
+        # Handle case where tables don't exist (e.g., during testing)
+        logger.info(f"Skipping sample data population: {e}")
     finally:
         db.close()
 
 # API Routes
 @app.get("/")
 async def root():
-    return {"message": "Customer Health Score API", "docs": "/docs"}
+    return JSONResponse(content={"success": True, "data": {"message": "Customer Health Score API", "docs": "/docs"}})
 
 @app.get("/api/customers", response_model=List[CustomerListResponse])
 async def get_customers(
@@ -90,10 +100,10 @@ async def get_customers(
             offset=offset,
             health_status=health_status
         )
-        return customers
+        return JSONResponse(content={"success": True, "data": customers})
     except Exception as e:
         logger.error(f"Error fetching customers: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch customers")
+        return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to fetch customers"})
 
 @app.get("/api/customers/{customer_id}/health", response_model=HealthScoreDetailResponse)
 async def get_customer_health_detail(customer_id: int, db: Session = Depends(get_db)):
@@ -101,12 +111,12 @@ async def get_customer_health_detail(customer_id: int, db: Session = Depends(get
     try:
         health_service = HealthScoreService(db)
         health_detail = health_service.get_customer_health_detail(customer_id)
-        return health_detail
+        return JSONResponse(content={"success": True, "data": health_detail})
     except CustomerNotFoundError:
-        raise HTTPException(status_code=404, detail="Customer not found")
+        return JSONResponse(status_code=404, content={"success": False, "error": "Customer not found", "detail": "Customer not found"})
     except Exception as e:
         logger.error(f"Error getting health detail: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get health detail")
+        return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to get health detail"})
 
 @app.post("/api/customers/{customer_id}/events")
 async def record_customer_event(
@@ -128,12 +138,12 @@ async def record_customer_event(
         # Recalculate health score in background
         background_tasks.add_task(recalculate_health_score, customer_id, db)
         
-        return result
+        return JSONResponse(content={"success": True, "data": result, "message": "Event recorded successfully"})
     except CustomerNotFoundError:
-        raise HTTPException(status_code=404, detail="Customer not found")
+        return JSONResponse(status_code=404, content={"success": False, "error": "Customer not found", "detail": "Customer not found"})
     except Exception as e:
         logger.error(f"Error recording event: {e}")
-        raise HTTPException(status_code=500, detail="Failed to record event")
+        return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to record event"})
 
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats(db: Session = Depends(get_db)):
@@ -141,15 +151,15 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
     try:
         health_service = HealthScoreService(db)
         stats = health_service.get_dashboard_stats()
-        return stats
+        return JSONResponse(content={"success": True, "data": stats})
     except Exception as e:
         logger.error(f"Error getting dashboard stats: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get dashboard stats")
+        return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to get dashboard stats"})
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+    return JSONResponse(content={"success": True, "data": {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}})
 
 async def recalculate_health_score(customer_id: int, db: Session):
     """Background task to recalculate health score"""
@@ -159,6 +169,11 @@ async def recalculate_health_score(customer_id: int, db: Session):
         logger.info(f"Recalculated health score for customer {customer_id}")
     except Exception as e:
         logger.error(f"Failed to recalculate health score for customer {customer_id}: {e}")
+        
+@app.get("/api/dashboard")
+async def serve_dashboard():
+    """Serve the React dashboard interface"""
+    return FileResponse('static/index.html')
 
 if __name__ == "__main__":
     import uvicorn

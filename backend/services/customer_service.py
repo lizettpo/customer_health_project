@@ -12,9 +12,18 @@ from domain.controllers.customer_controller import CustomerController
 
 class CustomerService:
     """Service layer for customer operations - pure orchestration"""
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls, db: Session = None):
+        if cls._instance is None:
+            cls._instance = super(CustomerService, cls).__new__(cls)
+        return cls._instance
     
     def __init__(self, db: Session):
-        self.customer_controller = CustomerController(db)
+        if not self._initialized:
+            self.customer_controller = CustomerController(db)
+            CustomerService._initialized = True
     
     def get_customers_with_health_scores(
         self,
