@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { useHealthScore } from "../../hooks";
 import HealthFactorCard from "./HealthFactorCard";
 import HistoricalChart from "./HistoricalChart";
+import CustomerActivityForm from "./CustomerActivityForm";
 import { formatDate, formatScore, formatNumber } from "../../utils/formatters";
 import {
   getHealthScoreColor,
@@ -9,8 +10,17 @@ import {
 } from "../../utils/healthScore";
 
 const CustomerHealthDetail = ({ customerId }) => {
+  const [showActivityForm, setShowActivityForm] = useState(false);
   const { healthScore, loading, error, refetch, calculateScore } =
     useHealthScore(customerId);
+
+  const handleEventRecorded = (eventData) => {
+    setShowActivityForm(false);
+    // Refetch health score to get updated data
+    setTimeout(() => {
+      refetch();
+    }, 1000); // Small delay to allow backend processing
+  };
 
   if (loading) {
     return (
@@ -184,8 +194,26 @@ const CustomerHealthDetail = ({ customerId }) => {
               {healthScore.data_summary.customer_segment}
             </span>
           </div>
+          <button
+            onClick={() => setShowActivityForm(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Record Activity
+          </button>
         </div>
       </div>
+
+      {/* Activity Recording Form */}
+      {showActivityForm && (
+        <CustomerActivityForm
+          customerId={customerId}
+          onEventRecorded={handleEventRecorded}
+          onClose={() => setShowActivityForm(false)}
+        />
+      )}
 
       {/* Data Summary */}
       <div className="bg-white rounded-lg shadow p-6">
