@@ -1,4 +1,4 @@
-export const formatDate = (dateString: string): string => {
+export const formatDate = (dateString) => {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
@@ -9,14 +9,14 @@ export const formatDate = (dateString: string): string => {
   }).format(date);
 };
 
-export const formatNumber = (num: number): string => {
+export const formatNumber = (num) => {
   return new Intl.NumberFormat('en-US').format(num);
 };
 
-export const formatPercentage = (num: number, decimals: number = 1): string => {
+export const formatPercentage = (num, decimals = 1) => {
   return `${num.toFixed(decimals)}%`;
 };
 
-export const formatScore = (score: number): string => {
+export const formatScore = (score) => {
   return score.toFixed(1);
 };
