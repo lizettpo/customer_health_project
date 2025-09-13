@@ -9,7 +9,7 @@ import logging
 from database import SessionLocal, engine, Base
 from services.customer_service import CustomerService
 from services.health_score_service import HealthScoreService
-from domain.exceptions import CustomerNotFoundError, DomainError
+from domain.exceptions import CustomerNotFoundError, DomainError, InvalidEventDataError
 from schemas import CustomerListResponse, HealthScoreDetailResponse, CustomerEventCreate
 
 # Configure logging
@@ -56,10 +56,15 @@ def get_health_service(db: Session = Depends(get_db)) -> HealthScoreService:
 async def customer_not_found_handler(request, exc: CustomerNotFoundError):
     return JSONResponse(status_code=404, content={"error": "Customer not found", "detail": str(exc)})
 
+@app.exception_handler(InvalidEventDataError)
+async def invalid_event_data_handler(request, exc: InvalidEventDataError):
+    logger.warning(f"Invalid event data: {exc}")
+    return JSONResponse(status_code=400, content={"success": False, "error": "Invalid event data", "detail": str(exc.message)})
+
 @app.exception_handler(DomainError)
 async def domain_error_handler(request, exc: DomainError):
     logger.error(f"Domain error: {exc}")
-    return JSONResponse(status_code=400, content={"error": "Domain error", "detail": str(exc)})
+    return JSONResponse(status_code=400, content={"success": False, "error": "Domain error", "detail": str(exc)})
 
 
 @app.on_event("startup")

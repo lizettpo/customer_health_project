@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from data.repositories import CustomerRepository, EventRepository, HealthScoreRepository
-from domain.exceptions import CustomerNotFoundError
+from domain.exceptions import CustomerNotFoundError, InvalidEventDataError
 
 
 class CustomerController:
@@ -124,7 +124,10 @@ class CustomerController:
         """
         LOADS DATA + SAVES: Load customer, save event, update data
         """
-        
+
+        # 🔥 VALIDATE EVENT DATA - Check required fields by event type
+        self._validate_event_data(event_type, event_data or {})
+
         # 🔥 LOAD CUSTOMER DATA - Validate customer exists
         loaded_customer = self.get_customer_by_id(customer_id)
         
@@ -176,3 +179,58 @@ class CustomerController:
             }
             for event in loaded_events
         ]
+
+    def _validate_event_data(self, event_type: str, event_data: Dict[str, Any]) -> None:
+        """
+        Validate that required fields are present and not empty for each event type.
+
+        Args:
+            event_type: The type of event being recorded
+            event_data: The event data dictionary to validate
+
+        Raises:
+            InvalidEventDataError: If required fields are missing or empty
+        """
+        def _is_empty(value) -> bool:
+            """Check if a value is empty (None, empty string, or whitespace only)"""
+            if value is None:
+                return True
+            if isinstance(value, str):
+                return not value.strip()
+            return False
+
+        # Define required fields for each event type
+        required_fields = {
+            "api_call": ["endpoint"],
+            "payment": ["amount"],
+            "feature_use": ["feature_name"],
+            "login": ["ip_address"],
+            "support_ticket": []  # No required fields - has defaults
+        }
+
+        # Get required fields for this event type
+        required = required_fields.get(event_type, [])
+
+        # Check each required field
+        missing_fields = []
+        for field in required:
+            if field not in event_data or _is_empty(event_data[field]):
+                missing_fields.append(field)
+
+        # Additional validation for specific fields
+        if event_type == "payment" and "amount" in event_data:
+            try:
+                amount = float(event_data["amount"])
+                if amount <= 0:
+                    missing_fields.append("amount (must be > 0)")
+            except (ValueError, TypeError):
+                missing_fields.append("amount (must be a valid number)")
+
+        # Raise error if validation fails
+        if missing_fields:
+            field_list = ", ".join(missing_fields)
+            raise InvalidEventDataError(
+                event_type=event_type,
+                field=field_list,
+                message=f"Required fields missing or empty for {event_type} event: {field_list}"
+            )

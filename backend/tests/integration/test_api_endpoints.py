@@ -253,11 +253,11 @@ class TestEventEndpoints:
         """Test POST /api/customers/{id}/events for non-existent customer"""
         event_data = {
             "event_type": "login",
-            "event_data": {}
+            "event_data": {"ip_address": "192.168.1.1"}  # Valid data to pass validation
         }
-        
+
         response = client.post("/api/customers/999/events", json=event_data)
-        
+
         assert response.status_code == 404
         data = response.json()
         assert data["success"] is False
@@ -275,17 +275,18 @@ class TestEventEndpoints:
         db_session.add(customer)
         db_session.commit()
         db_session.refresh(customer)
-        
-        # Event with minimal data
+
+        # Event with minimal required data for login
         event_data = {
-            "event_type": "login"
+            "event_type": "login",
+            "event_data": {"ip_address": "192.168.1.1"}  # Required field for login
         }
-        
+
         response = client.post(
-            f"/api/customers/{customer.id}/events", 
+            f"/api/customers/{customer.id}/events",
             json=event_data
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -308,7 +309,7 @@ class TestEventEndpoints:
         custom_time = datetime.utcnow() - timedelta(hours=2)
         event_data = {
             "event_type": "feature_use",
-            "event_data": {"feature": "dashboard"},
+            "event_data": {"feature_name": "dashboard"},  # Changed from "feature" to "feature_name"
             "timestamp": custom_time.isoformat()
         }
         
@@ -325,6 +326,36 @@ class TestEventEndpoints:
         db_event = db_session.query(CustomerEvent).filter_by(customer_id=customer.id).first()
         assert db_event is not None
         assert abs((db_event.timestamp - custom_time).total_seconds()) < 1
+
+    def test_record_customer_event_validation_error(self, client: TestClient, db_session: Session, clean_db):
+        """Test POST /api/customers/{id}/events with validation error"""
+        # Create test customer
+        customer = Customer(
+            name="Test Customer",
+            email="test@example.com",
+            company="Test Company",
+            segment="Enterprise"
+        )
+        db_session.add(customer)
+        db_session.commit()
+        db_session.refresh(customer)
+
+        # Event with missing required field
+        event_data = {
+            "event_type": "api_call",
+            "event_data": {}  # Missing required "endpoint" field
+        }
+
+        response = client.post(
+            f"/api/customers/{customer.id}/events",
+            json=event_data
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert data["success"] is False
+        assert "Invalid event data" in data["error"]
+        assert "endpoint" in data["detail"]
 
 
 class TestRootEndpoint:

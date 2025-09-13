@@ -58,7 +58,6 @@ class TestHealthScoreController:
         self.controller.event_repo.get_recent_events.return_value = mock_events
         self.controller.calculator.calculate_health_score.return_value = mock_health_score
         self.controller.health_score_repo.save_health_score.return_value = mock_health_score
-        self.controller.health_score_repo.get_historical_scores.return_value = mock_historical
         
         result = self.controller.get_customer_health_detail(1)
         
@@ -68,7 +67,6 @@ class TestHealthScoreController:
         assert result["status"] == "healthy"
         assert "api_usage" in result["factors"]
         assert "login_frequency" in result["factors"]
-        assert result["historical_scores"] == []  # No historical data in current implementation
         assert result["data_summary"]["events_analyzed"] == 2
         assert result["data_summary"]["customer_segment"] == "Enterprise"
     
@@ -187,7 +185,6 @@ class TestHealthScoreController:
         assert len(result["results"]) == 3
         assert result["results"][0]["customer_id"] == 1
         assert result["results"][0]["score"] == 71.0
-        assert result["average_score"] == 72.0  # (71 + 72 + 73) / 3
     
     def test_bulk_calculate_health_scores_missing_customers(self):
         """Test bulk calculation with some missing customers"""

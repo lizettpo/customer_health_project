@@ -38,14 +38,9 @@ class TestHealthScoreService:
                 }
             },
             "calculated_at": datetime.utcnow(),
-            "historical_scores": [
-                {"score": 83.0, "status": "healthy", "calculated_at": datetime.utcnow()},
-                {"score": 81.0, "status": "healthy", "calculated_at": datetime.utcnow()}
-            ],
             "recommendations": ["Keep up the good work"],
             "data_summary": {
                 "events_analyzed": 100,
-                "history_points": 30,
                 "customer_segment": "Enterprise"
             }
         }

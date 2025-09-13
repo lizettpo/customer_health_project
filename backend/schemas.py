@@ -82,7 +82,6 @@ class HealthScoreDetailResponse(BaseModel):
     status: str
     factors: Dict[str, Any]
     calculated_at: datetime
-    historical_scores: List[Dict[str, Any]]
     recommendations: List[str]
 
 # Dashboard schemas
@@ -91,5 +90,4 @@ class DashboardStats(BaseModel):
     healthy_customers: int
     at_risk_customers: int
     critical_customers: int
-    average_health_score: float
     last_updated: datetime

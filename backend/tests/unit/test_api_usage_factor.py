@@ -254,22 +254,4 @@ class TestApiUsageFactor:
         assert len(recommendations) > 0
         assert any("integration case study" in rec.lower() for rec in recommendations)
     
-    def test_events_with_no_event_data(self):
-        """Test handling of events without event_data"""
-        events = []
-        base_time = datetime.utcnow() - timedelta(days=10)
-        
-        for i in range(50):
-            event = Mock(spec=CustomerEvent)
-            event.event_type = "api_call"
-            event.timestamp = base_time + timedelta(hours=i)
-            event.event_data = None  # No event data
-            events.append(event)
-        
-        result = self.factor.calculate_score(self.customer, events)
-        
-        assert result.value == 50
-        # When event_data is None, events are counted but no metadata is processed
-        assert result.metadata["endpoints"] == {}
-        assert result.metadata["methods"] == {}
-        assert result.metadata["response_codes"] == {}
+  

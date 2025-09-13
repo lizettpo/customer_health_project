@@ -59,11 +59,9 @@ class HealthScoreController:
                 for name, factor in saved_health_score.factors.items()
             },
             "calculated_at": saved_health_score.calculated_at.isoformat() if saved_health_score.calculated_at else None,
-            "historical_scores": [],  # No history needed
             "recommendations": saved_health_score.recommendations,
             "data_summary": {
                 "events_analyzed": len(loaded_events),
-                "history_points": 0,  # No history points
                 "customer_segment": loaded_customer.segment
             }
         }
@@ -132,7 +130,6 @@ class HealthScoreController:
         return {
             "processed_customers": len(calculation_results),
             "results": calculation_results,
-            "average_score": sum(r["score"] for r in calculation_results) / len(calculation_results) if calculation_results else 0,
             "completed_at": datetime.utcnow()
         }
     
