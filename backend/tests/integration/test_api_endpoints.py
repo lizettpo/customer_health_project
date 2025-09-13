@@ -351,6 +351,14 @@ class TestEventEndpoints:
             json=event_data
         )
 
+        # Debug: print actual response for troubleshooting
+        if response.status_code != 400:
+            print(f"Unexpected status code: {response.status_code}")
+            try:
+                print(f"Response: {response.json()}")
+            except:
+                print(f"Response text: {response.text}")
+
         assert response.status_code == 400
         data = response.json()
         assert data["success"] is False

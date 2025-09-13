@@ -190,11 +190,14 @@ async def record_customer_event(
             event_data=event.event_data,
             timestamp=event.timestamp
         )
-        
+
         # Skip background health score recalculation to avoid SQLite lock contention
         # Health scores are calculated on-demand when requested
-        
+
         return JSONResponse(content={"success": True, "data": result, "message": "Event recorded successfully"})
+    except InvalidEventDataError as e:
+        logger.warning(f"Invalid event data: {e}")
+        return JSONResponse(status_code=400, content={"success": False, "error": "Invalid event data", "detail": str(e.message)})
     except CustomerNotFoundError:
         return JSONResponse(status_code=404, content={"success": False, "error": "Customer not found", "detail": "Customer not found"})
     except Exception as e:
