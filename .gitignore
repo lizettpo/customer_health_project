@@ -92,3 +92,4 @@ node_modules/
 venv/
 .env
 nul
+node_modules

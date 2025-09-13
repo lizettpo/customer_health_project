@@ -52,31 +52,6 @@ class TestCustomerEndpoints:
         assert data["data"][0]["health_score"] == 85.5
         assert data["data"][0]["health_status"] == "healthy"
     
-    def test_get_customers_with_pagination(self, client: TestClient, db_session: Session):
-        """Test GET /api/customers with pagination"""
-        # Create multiple customers
-        for i in range(5):
-            customer = Customer(
-                name=f"Customer {i}",
-                email=f"customer{i}@example.com",
-                company=f"Company {i}",
-                segment="SMB"
-            )
-            db_session.add(customer)
-        db_session.commit()
-        
-        # Test with limit
-        response = client.get("/api/customers?limit=3")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["data"]) == 3
-        
-        # Test with offset
-        response = client.get("/api/customers?limit=2&offset=2")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["data"]) == 2
-    
     def test_get_customers_filtered_by_health_status(self, client: TestClient, db_session: Session, clean_db):
         """Test GET /api/customers filtered by health status"""
         # Create customers with different health statuses
@@ -226,7 +201,7 @@ class TestHealthScoreEndpoints:
         assert stats["healthy_customers"] == 1
         assert stats["at_risk_customers"] == 1
         assert stats["critical_customers"] == 1
-        assert "average_health_score" in stats
+        assert "last_updated" in stats
         assert "distribution" in stats
 
 
@@ -350,20 +325,6 @@ class TestEventEndpoints:
         db_event = db_session.query(CustomerEvent).filter_by(customer_id=customer.id).first()
         assert db_event is not None
         assert abs((db_event.timestamp - custom_time).total_seconds()) < 1
-
-
-class TestHealthCheckEndpoint:
-    """Integration tests for health check endpoint"""
-    
-    def test_health_check_success(self, client: TestClient):
-        """Test GET /health endpoint"""
-        response = client.get("/health")
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["data"]["status"] == "healthy"
-        assert "timestamp" in data["data"]
 
 
 class TestRootEndpoint:

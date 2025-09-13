@@ -42,7 +42,7 @@ class TestCustomerController:
         self.controller.customer_repo.get_all.return_value = [mock_customer]
         self.controller.health_score_repo.get_latest_by_customer.return_value = mock_health_score
         
-        result = self.controller.get_customers_with_health_scores(limit=10, offset=0)
+        result = self.controller.get_customers_with_health_scores()
         
         assert len(result) == 1
         assert result[0]["id"] == 1
@@ -186,9 +186,3 @@ class TestCustomerController:
         assert result == 42
         self.controller.customer_repo.count.assert_called_once()
     
-    def test_singleton_pattern(self):
-        """Test that CustomerController follows singleton pattern"""
-        controller1 = CustomerController(self.mock_db)
-        controller2 = CustomerController(self.mock_db)
-        
-        assert controller1 is controller2

@@ -39,7 +39,7 @@ class LoginFrequencyFactor(HealthFactor):
         expected_logins = 20  # Expected logins per month for healthy customer
         
         # Calculate base score
-        score = min(100.0, (login_count / expected_logins) * 100)
+        score = min(100.0, (login_count / expected_logins) * 100) if expected_logins > 0 else 0
         
         # Calculate trend (recent 15 days vs previous 15 days)
         fifteen_days_ago = datetime.utcnow() - timedelta(days=15)

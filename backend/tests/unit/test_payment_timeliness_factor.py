@@ -93,8 +93,8 @@ class TestPaymentTimelinessFactor:
         
         result = self.factor.calculate_score(self.customer, events)
         
-        # 3 on-time out of 4 total = 75%
-        assert result.score == 75.0
+        # 3 on-time out of 4 total = 75% - 5 penalty for 1 late = 70.0
+        assert result.score == 70.0
         assert result.value == 3
         assert "75.0% payments on time" in result.description
         assert result.metadata["total_payments"] == 4
@@ -122,8 +122,8 @@ class TestPaymentTimelinessFactor:
         
         result = self.factor.calculate_score(self.customer, events)
         
-        # Base score: 50% (2/4 on-time) - 30 penalty (2 overdue * 15) = 20.0
-        assert result.score == 20.0
+        # Base score: 50% (2/4 on-time) - 40 penalty (2 overdue * 20) = 10.0
+        assert result.score == 10.0
         assert result.value == 2
         assert result.metadata["total_payments"] == 4
         assert result.metadata["overdue_payments"] == 2

@@ -97,12 +97,6 @@ class TestHealthScoreService:
         assert result == mock_stats
         self.service.health_score_controller.get_dashboard_statistics.assert_called_once()
     
-    def test_singleton_pattern(self):
-        """Test that HealthScoreService follows singleton pattern"""
-        service1 = HealthScoreService(self.mock_db)
-        service2 = HealthScoreService(self.mock_db)
-        
-        assert service1 is service2
 
     # =========================
     # SAD PATH / ERROR SCENARIOS

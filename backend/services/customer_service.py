@@ -12,29 +12,17 @@ from domain.controllers.customer_controller import CustomerController
 
 class CustomerService:
     """Service layer for customer operations - pure orchestration"""
-    _instance = None
-    _initialized = False
-    
-    def __new__(cls, db: Session = None):
-        if cls._instance is None:
-            cls._instance = super(CustomerService, cls).__new__(cls)
-        return cls._instance
     
     def __init__(self, db: Session):
-        if not self._initialized:
-            self.customer_controller = CustomerController(db)
-            CustomerService._initialized = True
+        self.customer_controller = CustomerController(db)
     
     def get_customers_with_health_scores(
         self,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
+
         health_status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get customers with their latest health scores"""
         return self.customer_controller.get_customers_with_health_scores(
-            limit=limit,
-            offset=offset,
             health_status=health_status
         )
     

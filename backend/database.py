@@ -7,14 +7,15 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-# Database URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password123@localhost:5432/customer_health")
+DATABASE_URL = "sqlite:///./customer_health.db"
 
 # Create SQLAlchemy engine with different settings for SQLite vs PostgreSQL
 if "sqlite" in DATABASE_URL:
     engine = create_engine(
         DATABASE_URL,
-        connect_args={"check_same_thread": False},
+                connect_args={"check_same_thread": False},
+
+        pool_recycle=-1,  # Don't recycle connections for SQLite
         echo=False
     )
 else:

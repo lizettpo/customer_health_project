@@ -59,7 +59,7 @@ class ApiUsageFactor(HealthFactor):
         
         # Calculate score based on customer segment expectations
         expected_calls = customer.get_expected_api_calls()
-        score = min(100.0, (api_call_count / expected_calls) * 100)
+        score = min(100.0, (api_call_count / expected_calls) * 100) if expected_calls > 0 else 0
         
         # Calculate trend
         fifteen_days_ago = datetime.utcnow() - timedelta(days=15)

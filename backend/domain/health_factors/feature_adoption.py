@@ -47,7 +47,7 @@ class FeatureAdoptionFactor(HealthFactor):
         
         # Calculate score
         expected_features = 8
-        score = min(100.0, (len(unique_features) / expected_features) * 100)
+        score = min(100.0, (len(unique_features) / expected_features) * 100) if expected_features > 0 else 0
         
         # Identify most and least used features
         most_used = max(feature_usage_count, key=feature_usage_count.get) if feature_usage_count else None

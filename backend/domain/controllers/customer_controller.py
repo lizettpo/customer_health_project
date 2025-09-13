@@ -13,58 +13,40 @@ from domain.exceptions import CustomerNotFoundError
 
 class CustomerController:
     """Controller that LOADS DATA and keeps it in memory for coordination"""
-    _instance = None
-    _initialized = False
-    
-    def __new__(cls, db: Session = None):
-        if cls._instance is None:
-            cls._instance = super(CustomerController, cls).__new__(cls)
-        return cls._instance
     
     def __init__(self, db: Session):
-        if not self._initialized:
-            self.customer_repo = CustomerRepository(db)
-            self.event_repo = EventRepository(db)
-            self.health_score_repo = HealthScoreRepository(db)
-            
-            # Data will be loaded here when needed
-            self._loaded_customers = None
-            self._loaded_health_scores = None
-            CustomerController._initialized = True
+        self.customer_repo = CustomerRepository(db)
+        self.event_repo = EventRepository(db)
+        self.health_score_repo = HealthScoreRepository(db)
+        
+        # Data will be loaded here when needed
+        self._loaded_customers = None
+        self._loaded_health_scores = None
+        self._initialized = True
     
     def get_customers_with_health_scores(
         self,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
         health_status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        LOADS DATA ONCE: Load customers and health scores, then coordinate in memory
+        LOADS DATA ONCE: Load customers and use health score controller for calculations
         """
         
         # 🔥 LOAD CUSTOMERS DATA - Load once and store
         if health_status:
             loaded_customers = self.customer_repo.get_by_health_status(health_status)
-            # Apply pagination to loaded data
-            if offset:
-                loaded_customers = loaded_customers[offset:]
-            if limit:
-                loaded_customers = loaded_customers[:limit]
         else:
-            loaded_customers = self.customer_repo.get_all(limit=limit, offset=offset)
+            loaded_customers = self.customer_repo.get_all()
         
-        # 🔥 LOAD ALL HEALTH SCORES DATA - Load once for all customers
-        customer_ids = [customer.id for customer in loaded_customers]
-        loaded_health_scores = {}
+        # 🔥 USE HEALTH SCORE CONTROLLER - Same logic as detail view
+        from domain.controllers.health_score_controller import HealthScoreController
+        health_controller = HealthScoreController(self.customer_repo.db)
         
-        for customer_id in customer_ids:
-            health_score = self.health_score_repo.get_latest_by_customer(customer_id)
-            loaded_health_scores[customer_id] = health_score
-        
-        # 🔥 COORDINATE LOADED DATA - Work with loaded data in memory
+        # 🔥 COORDINATE LOADED DATA - Use existing health scores for performance
         result = []
         for customer in loaded_customers:
-            health_score = loaded_health_scores.get(customer.id)
+            # Get existing health score instead of recalculating
+            existing_health_score = self.health_score_repo.get_latest_by_customer(customer.id)
             
             # FORMAT loaded data
             customer_data = {
@@ -75,8 +57,8 @@ class CustomerController:
                 "segment": customer.segment,
                 "created_at": customer.created_at.isoformat() if customer.created_at else None,
                 "last_activity": customer.last_activity.isoformat() if customer.last_activity else None,
-                "health_score": health_score.score if health_score else 0,
-                "health_status": health_score.status if health_score else "unknown"
+                "health_score": existing_health_score.score if existing_health_score else 0,
+                "health_status": existing_health_score.status if existing_health_score else "unknown"
             }
             result.append(customer_data)
         
@@ -173,3 +155,24 @@ class CustomerController:
         """
         # 🔥 LOAD COUNT DATA
         return self.customer_repo.count()
+    
+    def get_customer_events(self, customer_id: int, days: int = 90) -> List[Dict[str, Any]]:
+        """
+        LOADS DATA: Get customer events
+        """
+        # 🔥 LOAD CUSTOMER DATA - Validate customer exists
+        loaded_customer = self.get_customer_by_id(customer_id)
+        
+        # 🔥 LOAD EVENTS DATA
+        loaded_events = self.event_repo.get_recent_events(customer_id, days)
+        
+        # FORMAT loaded events
+        return [
+            {
+                "id": event.id,
+                "event_type": event.event_type,
+                "event_data": event.event_data,
+                "timestamp": event.timestamp.isoformat() if event.timestamp else None
+            }
+            for event in loaded_events
+        ]

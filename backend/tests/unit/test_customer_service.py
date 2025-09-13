@@ -37,11 +37,11 @@ class TestCustomerService:
         
         self.service.customer_controller.get_customers_with_health_scores.return_value = mock_customers
         
-        result = self.service.get_customers_with_health_scores(limit=10, offset=0)
+        result = self.service.get_customers_with_health_scores()
         
         assert result == mock_customers
         self.service.customer_controller.get_customers_with_health_scores.assert_called_once_with(
-            limit=10, offset=0, health_status=None
+            health_status=None
         )
     
     def test_get_customers_with_health_scores_filtered(self):
@@ -58,14 +58,12 @@ class TestCustomerService:
         self.service.customer_controller.get_customers_with_health_scores.return_value = mock_customers
         
         result = self.service.get_customers_with_health_scores(
-            limit=20, 
-            offset=5, 
             health_status="at_risk"
         )
         
         assert result == mock_customers
         self.service.customer_controller.get_customers_with_health_scores.assert_called_once_with(
-            limit=20, offset=5, health_status="at_risk"
+            health_status="at_risk"
         )
     
     def test_get_customer_by_id(self):
@@ -163,12 +161,6 @@ class TestCustomerService:
         assert result == mock_events
         self.service.customer_controller.get_customer_events.assert_called_once_with(1, 90)
     
-    def test_singleton_pattern(self):
-        """Test that CustomerService follows singleton pattern"""
-        service1 = CustomerService(self.mock_db)
-        service2 = CustomerService(self.mock_db)
-        
-        assert service1 is service2
 
     # =========================
     # SAD PATH / ERROR SCENARIOS
@@ -182,16 +174,16 @@ class TestCustomerService:
         with pytest.raises(DatabaseError):
             self.service.get_customers_with_health_scores()
     
-    def test_get_customers_with_invalid_pagination(self):
-        """Test handling of invalid pagination parameters"""
-        # Service should pass through invalid params to controller for validation
+    def test_get_customers_with_invalid_health_status(self):
+        """Test handling of invalid health status parameters"""
+        # Service should pass through params to controller for validation
         self.service.customer_controller.get_customers_with_health_scores.return_value = []
         
-        result = self.service.get_customers_with_health_scores(limit=-1, offset=-10)
+        result = self.service.get_customers_with_health_scores(health_status="invalid_status")
         
         # Controller should be called with invalid params (let controller handle validation)
         self.service.customer_controller.get_customers_with_health_scores.assert_called_once_with(
-            limit=-1, offset=-10, health_status=None
+            health_status="invalid_status"
         )
     
     def test_get_customer_by_id_not_found(self):

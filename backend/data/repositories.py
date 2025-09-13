@@ -5,7 +5,7 @@ Database operations and data access
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 
 from data.models import Customer as CustomerModel, CustomerEvent as CustomerEventModel, HealthScore as HealthScoreModel
@@ -25,33 +25,22 @@ class CustomerRepository:
             return None
         return self._to_domain_model(db_customer)
     
-    def get_all(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[Customer]:
+    def get_all(self) -> List[Customer]:
         """Get all customers with pagination"""
         query = self.db.query(CustomerModel)
-        
-        if offset:
-            query = query.offset(offset)
-        if limit:
-            query = query.limit(limit)
+     
         
         db_customers = query.all()
         return [self._to_domain_model(customer) for customer in db_customers]
     
     def get_by_health_status(self, status: str) -> List[Customer]:
         """Get customers by health status"""
-        # Get latest health scores by status
-        subquery = self.db.query(
-            HealthScoreModel.customer_id,
-            func.max(HealthScoreModel.calculated_at).label('latest_calc')
-        ).group_by(HealthScoreModel.customer_id).subquery()
+        # Get health scores by status (one per customer)
+        health_scores = self.db.query(HealthScoreModel).filter(
+            HealthScoreModel.status == status
+        ).all()
         
-        latest_scores = self.db.query(HealthScoreModel).join(
-            subquery,
-            (HealthScoreModel.customer_id == subquery.c.customer_id) &
-            (HealthScoreModel.calculated_at == subquery.c.latest_calc)
-        ).filter(HealthScoreModel.status == status).all()
-        
-        customer_ids = [score.customer_id for score in latest_scores]
+        customer_ids = [score.customer_id for score in health_scores]
         
         if not customer_ids:
             return []
@@ -142,7 +131,7 @@ class HealthScoreRepository:
         self.db = db
     
     def save_health_score(self, health_score: HealthScore) -> HealthScore:
-        """Save a health score to database"""
+        """Save a health score to database - updates existing or creates new (one per customer only)"""
         # Convert factor scores to JSON format
         factors_json = {}
         for name, factor_score in health_score.factors.items():
@@ -154,26 +143,42 @@ class HealthScoreRepository:
                 **factor_score.metadata
             }
         
-        db_score = HealthScoreModel(
-            customer_id=health_score.customer_id,
-            score=health_score.score,
-            status=health_score.status,
-            factors=factors_json,
-            recommendations=health_score.recommendations,
-            calculated_at=health_score.calculated_at
-        )
+        # Check if health score already exists for this customer
+        existing_score = self.db.query(HealthScoreModel).filter(
+            HealthScoreModel.customer_id == health_score.customer_id
+        ).first()
         
-        self.db.add(db_score)
-        self.db.commit()
-        self.db.refresh(db_score)
-        
-        return self._to_domain_model(db_score)
+        if existing_score:
+            # UPDATE existing record
+            existing_score.score = health_score.score
+            existing_score.status = health_score.status
+            existing_score.factors = factors_json
+            existing_score.recommendations = health_score.recommendations
+            existing_score.calculated_at = health_score.calculated_at
+            
+            self.db.commit()
+            self.db.refresh(existing_score)
+            return self._to_domain_model(existing_score)
+        else:
+            # CREATE new record (first time)
+            db_score = HealthScoreModel(
+                customer_id=health_score.customer_id,
+                score=health_score.score,
+                status=health_score.status,
+                factors=factors_json,
+                recommendations=health_score.recommendations,
+                calculated_at=health_score.calculated_at
+            )
+            self.db.add(db_score)
+            self.db.commit()
+            self.db.refresh(db_score)
+            return self._to_domain_model(db_score)
     
     def get_latest_by_customer(self, customer_id: int) -> Optional[HealthScore]:
-        """Get latest health score for a customer"""
+        """Get health score for a customer (one per customer)"""
         db_score = self.db.query(HealthScoreModel).filter(
             HealthScoreModel.customer_id == customer_id
-        ).order_by(desc(HealthScoreModel.calculated_at)).first()
+        ).first()
         
         if not db_score:
             return None
@@ -181,48 +186,51 @@ class HealthScoreRepository:
         return self._to_domain_model(db_score)
     
     def get_historical_scores(self, customer_id: int, limit: int = 30) -> List[HealthScore]:
-        """Get historical health scores for a customer"""
-        db_scores = self.db.query(HealthScoreModel).filter(
+        """Get health score for a customer (only one exists per customer)"""
+        db_score = self.db.query(HealthScoreModel).filter(
             HealthScoreModel.customer_id == customer_id
-        ).order_by(desc(HealthScoreModel.calculated_at)).limit(limit).all()
+        ).first()
         
-        return [self._to_domain_model(score) for score in db_scores]
+        if not db_score:
+            return []
+        
+        return [self._to_domain_model(db_score)]
     
     def count_by_status(self, status: str) -> int:
         """Count customers by health status"""
-        # Get latest scores and count by status
-        subquery = self.db.query(
-            HealthScoreModel.customer_id,
-            func.max(HealthScoreModel.calculated_at).label('latest_calc')
-        ).group_by(HealthScoreModel.customer_id).subquery()
+        return self.db.query(HealthScoreModel).filter(
+            HealthScoreModel.status == status
+        ).count()
+    
+    def get_dashboard_stats(self) -> Dict[str, int]:
+        """Get all dashboard stats in a single optimized query"""
+        from sqlalchemy import func, case
+        from data.models import Customer
         
-        count = self.db.query(HealthScoreModel).join(
-            subquery,
-            (HealthScoreModel.customer_id == subquery.c.customer_id) &
-            (HealthScoreModel.calculated_at == subquery.c.latest_calc)
-        ).filter(HealthScoreModel.status == status).count()
+        # Single query to get all counts
+        result = self.db.query(
+            func.count(Customer.id).label('total_customers'),
+            func.sum(case((HealthScoreModel.status == 'healthy', 1), else_=0)).label('healthy_count'),
+            func.sum(case((HealthScoreModel.status == 'at_risk', 1), else_=0)).label('at_risk_count'),
+            func.sum(case((HealthScoreModel.status == 'critical', 1), else_=0)).label('critical_count')
+        ).outerjoin(HealthScoreModel, Customer.id == HealthScoreModel.customer_id).first()
         
-        return count
+        return {
+            'total_customers': result.total_customers or 0,
+            'healthy_customers': result.healthy_count or 0,
+            'at_risk_customers': result.at_risk_count or 0,
+            'critical_customers': result.critical_count or 0
+        }
     
     def get_average_score(self) -> float:
         """Get average health score across all customers"""
-        # Get latest score for each customer
-        subquery = self.db.query(
-            HealthScoreModel.customer_id,
-            func.max(HealthScoreModel.calculated_at).label('latest_calc')
-        ).group_by(HealthScoreModel.customer_id).subquery()
+        scores = self.db.query(HealthScoreModel.score).all()
         
-        latest_scores = self.db.query(HealthScoreModel.score).join(
-            subquery,
-            (HealthScoreModel.customer_id == subquery.c.customer_id) &
-            (HealthScoreModel.calculated_at == subquery.c.latest_calc)
-        ).all()
-        
-        if not latest_scores:
+        if not scores:
             return 0.0
         
-        total_score = sum(score[0] for score in latest_scores)
-        return total_score / len(latest_scores)
+        total_score = sum(score[0] for score in scores)
+        return total_score / len(scores)
     
     def _to_domain_model(self, db_score: HealthScoreModel) -> HealthScore:
         """Convert database model to domain model"""
