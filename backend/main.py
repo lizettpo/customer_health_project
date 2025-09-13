@@ -91,17 +91,21 @@ async def startup_event():
     """Ensure tables exist, then optionally seed sample data and recalculate health scores."""
     import os
 
+    logger.info("🚀 Starting Customer Health Score API...")
+    logger.info(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
+    logger.info(f"Database URL: {os.getenv('DATABASE_URL', 'sqlite:///./data/customer_health.db')}")
+
     # 2a) Import models FIRST so Base knows the tables
     # Make sure data/models.py defines all your ORM classes and imports Base from database.py
     from data import models  # noqa: F401 (import just for side-effects / table registration)
 
     # 2b) Create tables for the CURRENT database (SQLite here)
     Base.metadata.create_all(bind=engine)
-    logger.info("Ensured DB tables exist.")
+    logger.info("✅ Database tables created/verified")
 
     # 2c) Skip seeding during tests
     if os.getenv("TESTING"):
-        logger.info("Skipping sample data population during testing")
+        logger.info("⚠️  Skipping sample data population during testing")
         return
 
     # 2d) Populate sample data if empty
@@ -112,20 +116,28 @@ async def startup_event():
     try:
         customer_count = db.query(Customer).count()
         if customer_count == 0:
-            logger.info("Populating database with sample data...")
+            logger.info("📊 Database empty - populating with sample data...")
             populate_sample_data(db)
-            logger.info("Sample data populated successfully!")
+            logger.info("✅ Sample data populated successfully!")
         else:
-            logger.info(f"Database already contains {customer_count} customers")
-        
+            logger.info(f"📈 Database already contains {customer_count} customers")
+
         # 2e) Skip health score recalculation on startup to avoid timeouts
         # Health scores are calculated on-demand and via background tasks
-        logger.info("Skipping health score recalculation on startup to improve response times")
-        
+        logger.info("⏩ Health scores calculated on-demand for optimal startup performance")
+        logger.info("🎉 API startup completed successfully!")
+
     except Exception as e:
-        logger.info(f"Error during startup: {e}")
+        logger.error(f"❌ Error during startup: {e}", exc_info=True)
     finally:
         db.close()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean shutdown logging"""
+    logger.info("🛑 Customer Health Score API shutting down...")
+    logger.info("👋 Goodbye!")
 
 
 # API Routes

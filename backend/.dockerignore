@@ -39,6 +39,7 @@ data/
 # Logs
 *.log
 logs/
+app.log*
 
 # Coverage reports
 htmlcov/

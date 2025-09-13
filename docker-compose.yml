@@ -16,6 +16,7 @@ services:
       - "8000:8000"
     volumes:
       - sqlite_data:/app/data  # Persistent SQLite storage
+      - backend_logs:/app/logs  # Persistent log storage
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health')\""]
       interval: 30s
@@ -54,4 +55,6 @@ services:
 
 volumes:
   sqlite_data:
+    driver: local
+  backend_logs:
     driver: local

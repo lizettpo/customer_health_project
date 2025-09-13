@@ -16,6 +16,7 @@ services:
     volumes:
       - ./backend:/app
       - sqlite_data:/app/data
+      - backend_logs:/app/logs
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health')\""]
       interval: 30s
@@ -46,4 +47,6 @@ services:
 
 volumes:
   sqlite_data:
+    driver: local
+  backend_logs:
     driver: local
