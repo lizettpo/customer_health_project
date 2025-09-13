@@ -1,3 +1,38 @@
+"""
+Customer Health Score API - FastAPI Application
+
+This module serves as the main entry point for the Customer Health Scoring System,
+a comprehensive platform for monitoring and scoring customer health based on various
+engagement and behavioral factors.
+
+The API follows Clean Architecture principles with clear separation between:
+- API layer (this file): HTTP endpoints, request/response handling
+- Services layer: Business workflows and orchestration
+- Domain layer: Core business logic and entities
+- Data layer: Database operations and persistence
+
+Key Features:
+- Real-time health score calculations
+- Event-driven customer activity tracking
+- Configurable health factors and weights
+- Customer segmentation (Enterprise, SMB, Startup)
+- Comprehensive logging and monitoring
+- SQLite database with auto-table creation
+- Background health score recalculation
+- Interactive API documentation via Swagger UI
+
+Architecture:
+- FastAPI for high-performance async HTTP API
+- SQLAlchemy ORM for database operations
+- Pydantic for request/response validation
+- Clean Architecture for maintainable codebase
+- Docker containerization for deployment
+- Comprehensive test coverage (116 unit + 16 integration tests)
+
+Author: Customer Health Team (with AI assistance)
+Version: 1.0.0
+"""
+
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -55,40 +90,129 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database dependency
+# Database dependency injection
 def get_db():
+    """
+    Create and manage database session for FastAPI dependency injection.
+
+    This function creates a new SQLAlchemy session for each request and ensures
+    proper cleanup after the request is completed. Used as a FastAPI dependency
+    to inject database sessions into endpoint functions.
+
+    Yields:
+        Session: SQLAlchemy database session for the current request
+
+    Usage:
+        @app.get("/example")
+        def example_endpoint(db: Session = Depends(get_db)):
+            # Use db session here
+            pass
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-# Service dependencies
+# Service layer dependency injection
 def get_customer_service(db: Session = Depends(get_db)) -> CustomerService:
+    """
+    Create CustomerService instance with database session dependency.
+
+    Args:
+        db: Database session injected by FastAPI dependency system
+
+    Returns:
+        CustomerService: Configured customer service instance
+    """
     return CustomerService(db)
 
 def get_health_service(db: Session = Depends(get_db)) -> HealthScoreService:
+    """
+    Create HealthScoreService instance with database session dependency.
+
+    Args:
+        db: Database session injected by FastAPI dependency system
+
+    Returns:
+        HealthScoreService: Configured health score service instance
+    """
     return HealthScoreService(db)
 
-# Exception handlers
+# Exception handlers for domain-specific errors
 @app.exception_handler(CustomerNotFoundError)
 async def customer_not_found_handler(request, exc: CustomerNotFoundError):
+    """
+    Handle CustomerNotFoundError exceptions globally.
+
+    Args:
+        request: The incoming HTTP request
+        exc: The CustomerNotFoundError exception instance
+
+    Returns:
+        JSONResponse: 404 error response with customer not found message
+    """
     return JSONResponse(status_code=404, content={"error": "Customer not found", "detail": str(exc)})
 
 @app.exception_handler(InvalidEventDataError)
 async def invalid_event_data_handler(request, exc: InvalidEventDataError):
+    """
+    Handle InvalidEventDataError exceptions globally.
+
+    Logs warning and returns 400 error for invalid event data submissions.
+
+    Args:
+        request: The incoming HTTP request
+        exc: The InvalidEventDataError exception instance
+
+    Returns:
+        JSONResponse: 400 error response with validation error details
+    """
     logger.warning(f"Invalid event data: {exc}")
     return JSONResponse(status_code=400, content={"success": False, "error": "Invalid event data", "detail": str(exc.message)})
 
 @app.exception_handler(DomainError)
 async def domain_error_handler(request, exc: DomainError):
+    """
+    Handle generic DomainError exceptions globally.
+
+    Logs error and returns 400 error for domain-related business rule violations.
+
+    Args:
+        request: The incoming HTTP request
+        exc: The DomainError exception instance
+
+    Returns:
+        JSONResponse: 400 error response with domain error details
+    """
     logger.error(f"Domain error: {exc}")
     return JSONResponse(status_code=400, content={"success": False, "error": "Domain error", "detail": str(exc)})
 
 
 @app.on_event("startup")
 async def startup_event():
-    """Ensure tables exist, then optionally seed sample data and recalculate health scores."""
+    """
+    Initialize application on startup.
+
+    This function runs when the FastAPI application starts and performs essential
+    initialization tasks including database setup, table creation, and sample data
+    population for development environments.
+
+    Startup Sequence:
+    1. Log startup information and environment details
+    2. Import ORM models to register them with SQLAlchemy Base
+    3. Create database tables if they don't exist (auto-migration)
+    4. Populate sample data in development (skip in testing/production)
+    5. Skip health score recalculation for faster startup
+
+    Environment Handling:
+    - TESTING=true: Skip sample data, minimal setup for test speed
+    - Development: Full setup with sample data for development workflow
+    - Production: Database setup without sample data override
+
+    Raises:
+        Exception: Database connection or table creation errors (logged but not fatal)
+    """
     import os
 
     logger.info("🚀 Starting Customer Health Score API...")

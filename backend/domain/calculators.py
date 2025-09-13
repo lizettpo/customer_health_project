@@ -34,22 +34,37 @@ class HealthScoreCalculator:
     def __init__(self):
         """
         Initialize the health score calculator with all health factors.
-        
+
+        Sets up all health factor instances and validates that their weights
+        sum to 1.0 for proper normalized scoring. Each factor contributes to
+        the overall customer health assessment based on its specific weight.
+
+        Health Factors Initialized:
+        - LoginFrequencyFactor: User engagement patterns (weight: 0.20)
+        - FeatureAdoptionFactor: Platform feature utilization (weight: 0.15)
+        - SupportTicketsFactor: Support interaction analysis (weight: 0.10)
+        - PaymentTimelinessFactor: Financial health indicators (weight: 0.25)
+        - ApiUsageFactor: API integration depth and usage (weight: 0.30)
+
+        Weight Validation:
+        Ensures all factor weights sum to exactly 1.0 (±0.001 tolerance)
+        to maintain proper scoring normalization across all factors.
+
         Raises:
-            InvalidHealthScoreError: If factor weights don't sum to 1.0
+            InvalidHealthScoreError: If factor weights don't sum to 1.0 within tolerance
         """
-        # Initialize all health factors
+        # Initialize all health factors with their specific calculation logic
         self.factors = [
-            LoginFrequencyFactor(),
-            FeatureAdoptionFactor(),
-            SupportTicketsFactor(),
-            PaymentTimelinessFactor(),
-            ApiUsageFactor()
+            LoginFrequencyFactor(),    # Tracks user login patterns and engagement
+            FeatureAdoptionFactor(),   # Measures feature discovery and usage
+            SupportTicketsFactor(),    # Analyzes support interaction frequency
+            PaymentTimelinessFactor(), # Evaluates payment behavior and timeliness
+            ApiUsageFactor()           # Monitors API integration and automation
         ]
-        
-        # Validate that weights sum to 1.0
+
+        # Validate that weights sum to 1.0 for proper normalized scoring
         total_weight = sum(factor.weight for factor in self.factors)
-        if abs(total_weight - 1.0) > 0.001:
+        if abs(total_weight - 1.0) > 0.001:  # Allow small floating-point tolerance
             raise InvalidHealthScoreError(f"Factor weights must sum to 1.0, got {total_weight}")
     
     def calculate_health_score(self, customer: Customer, events: List[CustomerEvent]) -> HealthScore:

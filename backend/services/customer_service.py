@@ -1,11 +1,17 @@
 """
 Service Layer - Customer Service
-Pure orchestration - calls controllers only
+
+This module implements the Customer Service, which serves as the orchestration layer
+between the API endpoints and the domain controllers in the Clean Architecture.
+The service layer coordinates business workflows, manages transactions, and provides
+a clean interface for customer-related operations.
+
 """
 
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+import logging
 
 from domain.controllers.customer_controller import CustomerController
 

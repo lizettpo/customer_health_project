@@ -1,11 +1,44 @@
 """
 Domain Layer - Domain Models
-Business entities and value objects
+
+This module contains the core domain entities and value objects for the Customer Health
+Scoring System. These models represent the fundamental business concepts and rules,
+independent of any infrastructure concerns like databases or APIs.
+
+Domain-Driven Design Principles:
+- Pure business logic without external dependencies
+- Rich domain models with behavior, not just data
+- Value objects for immutable concepts
+- Domain entities with identity and lifecycle
+- Business rules encapsulated within models
+
+Core Domain Entities:
+- Customer: Core customer entity with business behavior
+- HealthScore: Value object representing calculated health assessment
+- FactorScore: Individual factor contribution to overall health
+- CustomerEvent: Domain event for customer activity tracking
+
+Business Rules Enforced:
+- Health scores must be between 0-100
+- Customer segments determine scoring expectations
+- Health status calculated based on score thresholds
+- Factor weights must sum to reasonable totals
+
+Usage:
+    from domain.models import Customer, HealthScore, FactorScore
+
+    customer = Customer(id=1, name="Acme Corp", segment="enterprise")
+    health_score = HealthScore(customer_id=1, score=85.5, status="healthy")
+
+Author: Customer Health Team
+Architecture Pattern: Domain-Driven Design (DDD)
+Layer: Domain Layer (Clean Architecture)
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+from enum import Enum
 
 
 @dataclass

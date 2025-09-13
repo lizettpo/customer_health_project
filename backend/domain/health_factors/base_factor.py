@@ -1,10 +1,53 @@
 """
 Domain Layer - Abstract Base Class for Health Factors
-Defines the contract for all health factor implementations
+
+This module defines the abstract base class for all health factor implementations
+in the Customer Health Scoring System. Health factors are pluggable components
+that analyze specific aspects of customer behavior and contribute to the overall
+health score calculation.
+
+Design Principles:
+- Strategy Pattern: Interchangeable scoring algorithms
+- Template Method: Consistent calculation workflow
+- Single Responsibility: Each factor analyzes one behavioral aspect
+- Open/Closed Principle: Easy to add new factors without modifying existing code
+
+Health Factor Architecture:
+Each health factor is a self-contained component that:
+1. Analyzes customer events and metadata
+2. Produces a standardized score (0-100)
+3. Provides calculation metadata and trends
+4. Generates actionable recommendations
+5. Maintains consistent weight in overall calculation
+
+Available Health Factors:
+- APIUsageFactor: API call frequency and patterns (weight: 0.30)
+- LoginFrequencyFactor: User engagement and activity (weight: 0.20)
+- PaymentTimelinessFactor: Payment behavior and history (weight: 0.25)
+- FeatureAdoptionFactor: Feature usage and adoption (weight: 0.15)
+- SupportTicketsFactor: Support interaction patterns (weight: 0.10)
+
+Implementation Guidelines:
+- Score calculation should be deterministic and repeatable
+- Handle edge cases (no data, invalid data) gracefully
+- Provide meaningful recommendations based on score ranges
+- Consider customer segment in expectations and scoring
+- Use appropriate time windows for event analysis
+
+Usage:
+    from domain.health_factors import APIUsageFactor
+
+    factor = APIUsageFactor()
+    score = factor.calculate_score(customer, recent_events)
+    recommendations = factor.generate_recommendations(score, customer)
+
+Author: Customer Health Team
+Architecture Pattern: Strategy Pattern + Template Method
+Layer: Domain Layer (Clean Architecture)
 """
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 from domain.models import Customer, CustomerEvent, FactorScore
 
 

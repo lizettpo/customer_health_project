@@ -1,8 +1,41 @@
 """
-Pydantic schemas for API request/response validation
+Pydantic Schemas for API Request/Response Validation
+
+This module defines all Pydantic models used for API request and response validation
+in the Customer Health Scoring System. These schemas ensure data integrity,
+type safety, and automatic API documentation generation.
+
+Schema Categories:
+- Customer schemas: Customer creation, updates, and responses
+- Event schemas: Customer event recording and responses
+- Health score schemas: Health score details and breakdowns
+- Dashboard schemas: Statistics and summary data
+
+Key Features:
+- Automatic validation of incoming request data
+- Type conversion and coercion where appropriate
+- Email validation using EmailStr
+- Optional fields with sensible defaults
+- Nested models for complex data structures
+- Configuration for ORM compatibility
+
+Validation Benefits:
+- Prevents invalid data from entering the system
+- Provides clear error messages for API consumers
+- Generates accurate OpenAPI/Swagger documentation
+- Ensures consistent data types across API endpoints
+
+Usage:
+    from schemas import CustomerCreate, CustomerEventCreate
+
+    # Validate incoming data
+    customer_data = CustomerCreate(**request_json)
+    event_data = CustomerEventCreate(**event_json)
+
+Author: Customer Health Team
 """
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, validator
 from datetime import datetime
 from typing import Optional, Dict, List, Any
 
