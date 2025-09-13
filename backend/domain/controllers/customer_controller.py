@@ -29,37 +29,10 @@ class CustomerController:
         health_status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        LOADS DATA ONCE: Load customers and use health score controller for calculations
+        Get customers from memory store for instant access
         """
-
-        if health_status:
-            loaded_customers = self.customer_repo.get_by_health_status(health_status)
-        else:
-            loaded_customers = self.customer_repo.get_all()
-
-        from domain.controllers.health_score_controller import HealthScoreController
-        health_controller = HealthScoreController(self.customer_repo.db)
-
-        result = []
-        for customer in loaded_customers:
-            # Get existing health score instead of recalculating
-            existing_health_score = self.health_score_repo.get_latest_by_customer(customer.id)
-
-            # FORMAT loaded data
-            customer_data = {
-                "id": customer.id,
-                "name": customer.name,
-                "email": customer.email,
-                "company": customer.company,
-                "segment": customer.segment,
-                "created_at": customer.created_at.isoformat() if customer.created_at else None,
-                "last_activity": customer.last_activity.isoformat() if customer.last_activity else None,
-                "health_score": existing_health_score.score if existing_health_score else 0,
-                "health_status": existing_health_score.status if existing_health_score else "unknown"
-            }
-            result.append(customer_data)
-
-        return result
+        from domain.memory_store import memory_store
+        return memory_store.get_all_customers(health_status=health_status)
     
     def get_customer_with_events(self, customer_id: int, days: int = 90) -> Dict[str, Any]:
         """
@@ -99,12 +72,13 @@ class CustomerController:
     
     def get_customer_by_id(self, customer_id: int):
         """
-        LOADS DATA: Load and validate customer
+        Get customer from memory store with fallback to database
         """
-        loaded_customer = self.customer_repo.get_by_id(customer_id)
-        if not loaded_customer:
+        from domain.memory_store import memory_store
+        customer = memory_store.get_customer_by_id(customer_id)
+        if not customer:
             raise CustomerNotFoundError(f"Customer {customer_id} not found")
-        return loaded_customer
+        return customer
     
     def record_customer_event(
         self,
@@ -114,31 +88,19 @@ class CustomerController:
         timestamp: Optional[datetime] = None
     ) -> Dict[str, Any]:
         """
-        LOADS DATA + SAVES: Load customer, save event, update data
+        Record event using memory store - updates both memory and database
         """
+        from domain.memory_store import memory_store
 
         self._validate_event_data(event_type, event_data or {})
 
-        loaded_customer = self.get_customer_by_id(customer_id)
-
-        saved_event = self.event_repo.create_event(
+        # Use memory store to add event (handles database + memory updates)
+        return memory_store.add_customer_event(
             customer_id=customer_id,
             event_type=event_type,
             event_data=event_data or {},
-            timestamp=timestamp or datetime.utcnow()
+            timestamp=timestamp
         )
-
-        self.customer_repo.update_last_activity(customer_id, saved_event.timestamp)
-
-        # FORMAT response with loaded data
-        return {
-            "message": "Event recorded successfully",
-            "event_id": saved_event.id,
-            "customer_id": loaded_customer.id,
-            "customer_name": loaded_customer.name,
-            "event_type": event_type,
-            "timestamp": saved_event.timestamp.isoformat() if saved_event.timestamp else None
-        }
     
     def get_customer_count(self) -> int:
         """
@@ -148,22 +110,16 @@ class CustomerController:
     
     def get_customer_events(self, customer_id: int, days: int = 90) -> List[Dict[str, Any]]:
         """
-        LOADS DATA: Get customer events
+        Get customer events from memory store
         """
-        loaded_customer = self.get_customer_by_id(customer_id)
+        from domain.memory_store import memory_store
 
-        loaded_events = self.event_repo.get_recent_events(customer_id, days)
+        # Validate customer exists
+        customer = memory_store.get_customer_by_id(customer_id)
+        if not customer:
+            raise CustomerNotFoundError(f"Customer {customer_id} not found")
 
-        # FORMAT loaded events
-        return [
-            {
-                "id": event.id,
-                "event_type": event.event_type,
-                "event_data": event.event_data,
-                "timestamp": event.timestamp.isoformat() if event.timestamp else None
-            }
-            for event in loaded_events
-        ]
+        return memory_store.get_customer_events(customer_id, days)
 
     def _validate_event_data(self, event_type: str, event_data: Dict[str, Any]) -> None:
         """

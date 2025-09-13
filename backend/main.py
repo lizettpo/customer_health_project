@@ -246,9 +246,13 @@ async def startup_event():
         else:
             logger.info(f"📈 Database already contains {customer_count} customers")
 
-        # 2e) Skip health score recalculation on startup to avoid timeouts
-        # Health scores are calculated on-demand and via background tasks
-        logger.info("⏩ Health scores calculated on-demand for optimal startup performance")
+        # 2e) Load all data into memory store for instant access
+        logger.info("🗄️  Loading all data into memory store...")
+        from domain.memory_store import memory_store
+        memory_store.set_database(db)
+        memory_store.load_all_data()
+        logger.info("✅ All data loaded into memory store for instant access!")
+
         logger.info("🎉 API startup completed successfully!")
 
     except Exception as e:
