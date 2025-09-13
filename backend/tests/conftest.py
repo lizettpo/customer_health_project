@@ -71,6 +71,88 @@ def db_session():
 
 
 @pytest.fixture(scope="function")
+def memory_store_setup(db_session):
+    """Setup memory store with fast mock data and database connection"""
+    from domain.memory_store import memory_store
+    from domain.models import Customer as DomainCustomer, HealthScore as DomainHealthScore
+    from datetime import datetime
+    from unittest.mock import Mock
+
+    # Create fast mock data directly
+    test_customer = DomainCustomer(
+        id=1,
+        name="Test Customer",
+        email="test@example.com",
+        company="Test Company",
+        segment="Enterprise",
+        created_at=datetime.utcnow(),
+        last_activity=datetime.utcnow()
+    )
+
+    # Create mock health score with simple structure
+    test_health_score = DomainHealthScore(
+        id=1,
+        customer_id=1,
+        score=85.0,
+        status="healthy",
+        factors={
+            "api_usage": type('obj', (object,), {
+                'score': 85.0, 'value': 100, 'description': "Good usage",
+                'trend': "stable", 'metadata': {}
+            })()
+        },
+        calculated_at=datetime.utcnow(),
+        recommendations=["Keep it up"]
+    )
+
+    # Set database connection for operations that need it
+    memory_store.set_database(db_session)
+
+    # Directly set memory store data - no database calls
+    memory_store.customers = {1: test_customer}
+    memory_store.health_scores = {1: test_health_score}
+    memory_store.events = {1: []}
+
+    # Mock the heavy database operations to return fast results
+    from domain.exceptions import CustomerNotFoundError
+
+    original_add_event = memory_store.add_customer_event
+    def mock_add_event(customer_id, event_type, event_data, timestamp=None):
+        if customer_id not in memory_store.customers:
+            raise CustomerNotFoundError(f"Customer {customer_id} not found")
+
+        return {
+            "message": "Event recorded successfully",
+            "event_id": 1,
+            "customer_id": customer_id,
+            "customer_name": memory_store.customers[customer_id].name,
+            "event_type": event_type,
+            "timestamp": (timestamp or datetime.utcnow()).isoformat(),
+            "new_health_score": 85.0,
+            "new_health_status": "healthy"
+        }
+
+    memory_store.add_customer_event = mock_add_event
+
+    original_recalculate = memory_store.recalculate_all_health_scores
+    def mock_recalculate():
+        return len(memory_store.customers)
+
+    memory_store.recalculate_all_health_scores = mock_recalculate
+
+    yield memory_store
+
+    # Restore original methods
+    memory_store.add_customer_event = original_add_event
+    memory_store.recalculate_all_health_scores = original_recalculate
+
+    # Clean up
+    memory_store.customers.clear()
+    memory_store.events.clear()
+    memory_store.health_scores.clear()
+
+
+@pytest.fixture(scope="function")
 def client(db_session):
     """Create a test client with database dependency override"""
     def override_get_db():

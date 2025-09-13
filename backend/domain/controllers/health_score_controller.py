@@ -13,7 +13,7 @@ from domain.exceptions import CustomerNotFoundError
 
 
 class HealthScoreController:
-    """Controller that LOADS DATA and coordinates with domain logic"""
+    """Controller that uses memory store for all operations"""
 
     def __init__(self, db: Session):
         self.customer_repo = CustomerRepository(db)
@@ -21,18 +21,15 @@ class HealthScoreController:
         self.health_score_repo = HealthScoreRepository(db)
         self.calculator = HealthScoreCalculator()
 
-        # Cache for loaded data
-        self._dashboard_data = None
-        self._last_dashboard_load = None
-        self._initialized = True
+        # Get global memory store instance
+        from domain.memory_store import memory_store
+        self.memory_store = memory_store
     
     def get_customer_health_detail(self, customer_id: int) -> Dict[str, Any]:
         """
         Get customer health detail from memory store
         """
-        from domain.memory_store import memory_store
-
-        health_detail = memory_store.get_customer_health_detail(customer_id)
+        health_detail = self.memory_store.get_customer_health_detail(customer_id)
         if not health_detail:
             raise CustomerNotFoundError(f"Customer {customer_id} not found")
 
@@ -42,8 +39,7 @@ class HealthScoreController:
         """
         Get dashboard statistics from memory store
         """
-        from domain.memory_store import memory_store
-        return memory_store.get_dashboard_stats()
+        return self.memory_store.get_dashboard_stats()
     
     def bulk_calculate_health_scores(self, customer_ids: List[int]) -> Dict[str, Any]:
         """
@@ -106,5 +102,4 @@ class HealthScoreController:
         Recalculate health scores for all customers using memory store
         Returns the number of customers processed
         """
-        from domain.memory_store import memory_store
-        return memory_store.recalculate_all_health_scores()
+        return self.memory_store.recalculate_all_health_scores()

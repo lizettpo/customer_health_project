@@ -12,17 +12,16 @@ from domain.exceptions import CustomerNotFoundError, InvalidEventDataError
 
 
 class CustomerController:
-    """Controller that LOADS DATA and keeps it in memory for coordination"""
+    """Controller that uses memory store for all operations"""
 
     def __init__(self, db: Session):
         self.customer_repo = CustomerRepository(db)
         self.event_repo = EventRepository(db)
         self.health_score_repo = HealthScoreRepository(db)
 
-        # Data will be loaded here when needed
-        self._loaded_customers = None
-        self._loaded_health_scores = None
-        self._initialized = True
+        # Get global memory store instance
+        from domain.memory_store import memory_store
+        self.memory_store = memory_store
     
     def get_customers_with_health_scores(
         self,
@@ -31,8 +30,7 @@ class CustomerController:
         """
         Get customers from memory store for instant access
         """
-        from domain.memory_store import memory_store
-        return memory_store.get_all_customers(health_status=health_status)
+        return self.memory_store.get_all_customers(health_status=health_status)
     
     def get_customer_with_events(self, customer_id: int, days: int = 90) -> Dict[str, Any]:
         """
@@ -74,8 +72,7 @@ class CustomerController:
         """
         Get customer from memory store with fallback to database
         """
-        from domain.memory_store import memory_store
-        customer = memory_store.get_customer_by_id(customer_id)
+        customer = self.memory_store.get_customer_by_id(customer_id)
         if not customer:
             raise CustomerNotFoundError(f"Customer {customer_id} not found")
         return customer
@@ -90,12 +87,10 @@ class CustomerController:
         """
         Record event using memory store - updates both memory and database
         """
-        from domain.memory_store import memory_store
-
         self._validate_event_data(event_type, event_data or {})
 
         # Use memory store to add event (handles database + memory updates)
-        return memory_store.add_customer_event(
+        return self.memory_store.add_customer_event(
             customer_id=customer_id,
             event_type=event_type,
             event_data=event_data or {},
@@ -112,14 +107,12 @@ class CustomerController:
         """
         Get customer events from memory store
         """
-        from domain.memory_store import memory_store
-
         # Validate customer exists
-        customer = memory_store.get_customer_by_id(customer_id)
+        customer = self.memory_store.get_customer_by_id(customer_id)
         if not customer:
             raise CustomerNotFoundError(f"Customer {customer_id} not found")
 
-        return memory_store.get_customer_events(customer_id, days)
+        return self.memory_store.get_customer_events(customer_id, days)
 
     def _validate_event_data(self, event_type: str, event_data: Dict[str, Any]) -> None:
         """
