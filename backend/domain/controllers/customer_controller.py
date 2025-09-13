@@ -13,12 +13,12 @@ from domain.exceptions import CustomerNotFoundError, InvalidEventDataError
 
 class CustomerController:
     """Controller that LOADS DATA and keeps it in memory for coordination"""
-    
+
     def __init__(self, db: Session):
         self.customer_repo = CustomerRepository(db)
         self.event_repo = EventRepository(db)
         self.health_score_repo = HealthScoreRepository(db)
-        
+
         # Data will be loaded here when needed
         self._loaded_customers = None
         self._loaded_health_scores = None
@@ -31,20 +31,20 @@ class CustomerController:
         """
         LOADS DATA ONCE: Load customers and use health score controller for calculations
         """
-        
+
         if health_status:
             loaded_customers = self.customer_repo.get_by_health_status(health_status)
         else:
             loaded_customers = self.customer_repo.get_all()
-        
+
         from domain.controllers.health_score_controller import HealthScoreController
         health_controller = HealthScoreController(self.customer_repo.db)
-        
+
         result = []
         for customer in loaded_customers:
             # Get existing health score instead of recalculating
             existing_health_score = self.health_score_repo.get_latest_by_customer(customer.id)
-            
+
             # FORMAT loaded data
             customer_data = {
                 "id": customer.id,
@@ -58,27 +58,27 @@ class CustomerController:
                 "health_status": existing_health_score.status if existing_health_score else "unknown"
             }
             result.append(customer_data)
-        
+
         return result
     
     def get_customer_with_events(self, customer_id: int, days: int = 90) -> Dict[str, Any]:
         """
         LOADS DATA ONCE: Load customer and all their events, coordinate in memory
         """
-        
+
         loaded_customer = self.customer_repo.get_by_id(customer_id)
         if not loaded_customer:
             raise CustomerNotFoundError(f"Customer {customer_id} not found")
-        
+
         loaded_events = self.event_repo.get_recent_events(customer_id, days)
-        
+
         events_by_type = {}
         for event in loaded_events:
             event_type = event.event_type
             if event_type not in events_by_type:
                 events_by_type[event_type] = []
             events_by_type[event_type].append(event)
-        
+
         return {
             "customer": {
                 "id": loaded_customer.id,
@@ -90,7 +90,7 @@ class CustomerController:
             "events_summary": {
                 "total_events": len(loaded_events),
                 "events_by_type": {
-                    event_type: len(events) 
+                    event_type: len(events)
                     for event_type, events in events_by_type.items()
                 },
                 "latest_events": loaded_events[:5]  # Last 5 events
@@ -120,16 +120,16 @@ class CustomerController:
         self._validate_event_data(event_type, event_data or {})
 
         loaded_customer = self.get_customer_by_id(customer_id)
-        
+
         saved_event = self.event_repo.create_event(
             customer_id=customer_id,
             event_type=event_type,
             event_data=event_data or {},
             timestamp=timestamp or datetime.utcnow()
         )
-        
+
         self.customer_repo.update_last_activity(customer_id, saved_event.timestamp)
-        
+
         # FORMAT response with loaded data
         return {
             "message": "Event recorded successfully",
@@ -151,9 +151,9 @@ class CustomerController:
         LOADS DATA: Get customer events
         """
         loaded_customer = self.get_customer_by_id(customer_id)
-        
+
         loaded_events = self.event_repo.get_recent_events(customer_id, days)
-        
+
         # FORMAT loaded events
         return [
             {

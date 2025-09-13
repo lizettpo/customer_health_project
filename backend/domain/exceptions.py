@@ -156,7 +156,7 @@ class FactorCalculationError(DomainError):
 
 class DatabaseError(DomainError):
     """Raised when database operations fail"""
-    
+
     def __init__(self, operation: str = None, table: str = None, error_code: DataErrorCode = None):
         details = {"operation": operation, "table": table}
         error_code = error_code or DataErrorCode.REPOSITORY_ERROR
@@ -164,35 +164,8 @@ class DatabaseError(DomainError):
         super().__init__(error_code, custom_message, details)
 
 
-# Helper functions to create specific exceptions
-def customer_not_found(customer_id: int) -> CustomerNotFoundError:
-    """Helper to create customer not found exception"""
-    return CustomerNotFoundError(customer_id)
+class DataAccessError(DatabaseError):
+    """Alias for DatabaseError - maintained for backward compatibility"""
+    pass
 
 
-def invalid_customer_email(email: str) -> InvalidCustomerDataError:
-    """Helper to create invalid email exception"""
-    return InvalidCustomerDataError("email", email, f"Invalid email format: {email}")
-
-
-def invalid_health_score_range(score: float) -> InvalidHealthScoreError:
-    """Helper to create invalid score range exception"""
-    return InvalidHealthScoreError(score, "Score must be between 0 and 100")
-
-
-def factor_calculation_failed(factor_name: str, reason: str) -> FactorCalculationError:
-    """Helper to create factor calculation error"""
-    factor_error_map = {
-        "login_frequency": FactorErrorCode.LOGIN_CALCULATION_FAILED,
-        "feature_adoption": FactorErrorCode.FEATURE_CALCULATION_FAILED,
-        "support_tickets": FactorErrorCode.SUPPORT_CALCULATION_FAILED,
-        "payment_timeliness": FactorErrorCode.PAYMENT_CALCULATION_FAILED,
-        "api_usage": FactorErrorCode.API_CALCULATION_FAILED
-    }
-    error_code = factor_error_map.get(factor_name, FactorErrorCode.FACTOR_NOT_FOUND)
-    return FactorCalculationError(factor_name, error_code, reason)
-
-
-def database_operation_failed(operation: str, table: str = None) -> DatabaseError:
-    """Helper to create database operation error"""
-    return DatabaseError(operation, table, DataErrorCode.QUERY_EXECUTION_FAILED)

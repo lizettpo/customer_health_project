@@ -420,6 +420,8 @@ async def recalculate_health_score(customer_id: int, db: Session):
     except Exception as e:
         logger.error(f"Failed to recalculate health score for customer {customer_id}: {e}")
         
+
+
 @app.get("/api/dashboard")
 async def serve_dashboard():
     """Serve the React dashboard interface"""
