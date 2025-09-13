@@ -39,7 +39,7 @@
 }
 
 .stat-card-title--at-risk {
-  border-left: 4px solid #F59E0B;
+  border-left: 4px solid #F97316;
 }
 
 .stat-card-title--critical {
@@ -60,7 +60,7 @@
 }
 
 .stat-card-value--at-risk {
-  color: #F59E0B;
+  color: #F97316;
 }
 
 .stat-card-value--critical {

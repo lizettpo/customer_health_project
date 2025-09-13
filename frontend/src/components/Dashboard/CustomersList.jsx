@@ -79,43 +79,41 @@ const CustomersList = ({ onCustomerSelect }) => {
 
       <div className="divide-y divide-gray-200">
         {customers.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
+          <div className="text-center text-gray-500">
             No customers found
           </div>
         ) : (
           customers.map((customer) => (
             <div
               key={customer.id}
-              className={`p-6 hover:bg-gray-50 transition-colors ${
-                onCustomerSelect ? "cursor-pointer" : ""
-              }`}
+              className="customer-item"
               onClick={() => onCustomerSelect?.(customer)}
             >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h4 className="text-lg font-medium text-gray-900 mb-1">
-                    {customer.name}
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-2">{customer.email}</p>
-                  <p className="text-xs text-gray-500">
-                    Created: {formatDate(customer.created_at)}
-                  </p>
-                </div>
+              <div className="customer-info">
+                <h4 className="customer-name">
+                  {customer.name}
+                </h4>
+                <p className="customer-details">{customer.email}</p>
+                <p className="customer-details">
+                  Created: {formatDate(customer.created_at)}
+                </p>
+              </div>
 
-                <div className="text-right">
-                  {customer.health_score !== undefined ? (
-                    <>
-                      <div className={`health-score health-score--${customer.health_status || "critical"}`}>
-                        {formatScore(customer.health_score)}
-                      </div>
-                      <div className={`health-status-badge health-status-badge--${customer.health_status || "critical"}`}>
-                        {formatHealthStatus(customer.health_status || "critical")}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-sm text-gray-400">No score</div>
-                  )}
-                </div>
+              <div className="customer-health">
+                {customer.health_score !== undefined ? (
+                  <>
+                    <div className={`health-score health-score--${(customer.health_status || "critical").replace('_', '-')}`}>
+                      {formatScore(customer.health_score)}
+                    </div>
+                    <div className={`health-status-badge health-status-badge--${(customer.health_status || "critical").replace('_', '-')}`}>
+                      {formatHealthStatus(customer.health_status || "critical")}
+                    </div>
+                  </>
+                ) : (
+                  <div className="health-unavailable">
+                    No health data
+                  </div>
+                )}
               </div>
             </div>
           ))

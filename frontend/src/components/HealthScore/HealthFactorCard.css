@@ -38,7 +38,7 @@
 }
 
 .factor-score--at-risk {
-  color: #F59E0B;
+  color: #F97316;
 }
 
 .factor-score--critical {
@@ -98,7 +98,7 @@
 }
 
 .factor-progress-fill--at-risk {
-  background-color: #F59E0B;
+  background-color: #F97316;
 }
 
 .factor-progress-fill--critical {

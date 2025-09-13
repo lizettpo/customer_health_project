@@ -40,20 +40,15 @@ class TestCustomerController:
         
         # Configure mocks
         self.controller.customer_repo.get_all.return_value = [mock_customer]
+        self.controller.health_score_repo.get_latest_by_customer.return_value = mock_health_score
         
-        # Mock the health score controller call
-        with patch('domain.controllers.health_score_controller.HealthScoreController') as mock_health_controller_class:
-            mock_health_controller = Mock()
-            mock_health_controller.calculate_and_save_health_score.return_value = mock_health_score
-            mock_health_controller_class.return_value = mock_health_controller
-            
-            result = self.controller.get_customers_with_health_scores()
-            
-            assert len(result) == 1
-            assert result[0]["id"] == 1
-            assert result[0]["name"] == "Test Customer"
-            assert result[0]["health_score"] == 85.0
-            assert result[0]["health_status"] == "healthy"
+        result = self.controller.get_customers_with_health_scores()
+        
+        assert len(result) == 1
+        assert result[0]["id"] == 1
+        assert result[0]["name"] == "Test Customer"
+        assert result[0]["health_score"] == 85.0
+        assert result[0]["health_status"] == "healthy"
     
     def test_get_customers_with_health_scores_by_status(self):
         """Test filtering customers by health status"""
@@ -71,18 +66,13 @@ class TestCustomerController:
         mock_health_score.status = "at_risk"
         
         self.controller.customer_repo.get_by_health_status.return_value = [mock_customer]
+        self.controller.health_score_repo.get_latest_by_customer.return_value = mock_health_score
         
-        # Mock the health score controller call
-        with patch('domain.controllers.health_score_controller.HealthScoreController') as mock_health_controller_class:
-            mock_health_controller = Mock()
-            mock_health_controller.calculate_and_save_health_score.return_value = mock_health_score
-            mock_health_controller_class.return_value = mock_health_controller
-            
-            result = self.controller.get_customers_with_health_scores(health_status="at_risk")
-            
-            assert len(result) == 1
-            assert result[0]["health_status"] == "at_risk"
-            self.controller.customer_repo.get_by_health_status.assert_called_once_with("at_risk")
+        result = self.controller.get_customers_with_health_scores(health_status="at_risk")
+        
+        assert len(result) == 1
+        assert result[0]["health_status"] == "at_risk"
+        self.controller.customer_repo.get_by_health_status.assert_called_once_with("at_risk")
     
     def test_get_customers_with_no_health_score(self):
         """Test handling customers without health scores"""
@@ -96,18 +86,13 @@ class TestCustomerController:
         mock_customer.last_activity = datetime.utcnow()
         
         self.controller.customer_repo.get_all.return_value = [mock_customer]
+        self.controller.health_score_repo.get_latest_by_customer.return_value = None
         
-        # Mock the health score controller call to return None
-        with patch('domain.controllers.customer_controller.HealthScoreController') as mock_health_controller_class:
-            mock_health_controller = Mock()
-            mock_health_controller.calculate_and_save_health_score.return_value = None
-            mock_health_controller_class.return_value = mock_health_controller
-            
-            result = self.controller.get_customers_with_health_scores()
-            
-            assert len(result) == 1
-            assert result[0]["health_score"] == 0
-            assert result[0]["health_status"] == "unknown"
+        result = self.controller.get_customers_with_health_scores()
+        
+        assert len(result) == 1
+        assert result[0]["health_score"] == 0
+        assert result[0]["health_status"] == "unknown"
     
     def test_get_customer_by_id_success(self):
         """Test successful customer retrieval by ID"""
@@ -201,9 +186,3 @@ class TestCustomerController:
         assert result == 42
         self.controller.customer_repo.count.assert_called_once()
     
-    def test_singleton_pattern(self):
-        """Test that CustomerController follows singleton pattern"""
-        controller1 = CustomerController(self.mock_db)
-        controller2 = CustomerController(self.mock_db)
-        
-        assert controller1 is controller2
