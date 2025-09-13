@@ -97,28 +97,23 @@ class HealthScoreController:
         LOADS BULK DATA: Load multiple customers and events, batch calculate
         """
         
-        # 🔥 LOAD ALL CUSTOMERS DATA AT ONCE
         loaded_customers = {}
         for customer_id in customer_ids:
             customer = self.customer_repo.get_by_id(customer_id)
             if customer:
                 loaded_customers[customer_id] = customer
         
-        # 🔥 LOAD ALL EVENTS DATA AT ONCE
         loaded_events = {}
         for customer_id in loaded_customers.keys():
             events = self.event_repo.get_recent_events(customer_id, days=90)
             loaded_events[customer_id] = events
         
-        # 🔥 COORDINATE WITH DOMAIN - Batch calculate all scores
         calculation_results = []
         for customer_id, customer in loaded_customers.items():
             events = loaded_events[customer_id]
             
-            # Calculate using domain logic
             health_score = self.calculator.calculate_health_score(customer, events)
             
-            # Save result
             saved_score = self.health_score_repo.save_health_score(health_score)
             calculation_results.append({
                 "customer_id": customer_id,
@@ -126,7 +121,6 @@ class HealthScoreController:
                 "status": saved_score.status
             })
         
-        # 🔥 COORDINATE RESULTS - Summary of batch operation
         return {
             "processed_customers": len(calculation_results),
             "results": calculation_results,
@@ -144,18 +138,14 @@ class HealthScoreController:
         """
         Calculate and save health score for a single customer
         """
-        # 🔥 LOAD CUSTOMER DATA
         customer = self.customer_repo.get_by_id(customer_id)
         if not customer:
             raise CustomerNotFoundError(f"Customer {customer_id} not found")
         
-        # 🔥 LOAD EVENTS DATA
         events = self.event_repo.get_recent_events(customer_id, days=90)
         
-        # 🔥 CALCULATE HEALTH SCORE
         health_score = self.calculator.calculate_health_score(customer, events)
         
-        # 🔥 SAVE HEALTH SCORE
         return self.health_score_repo.save_health_score(health_score)
     
     def recalculate_all_health_scores(self) -> int:
@@ -166,7 +156,6 @@ class HealthScoreController:
         import logging
         logger = logging.getLogger(__name__)
         
-        # 🔥 LOAD ALL CUSTOMERS
         all_customers = self.customer_repo.get_all()
         processed_count = 0
         
@@ -174,13 +163,10 @@ class HealthScoreController:
         
         for customer in all_customers:
             try:
-                # 🔥 LOAD EVENTS FOR EACH CUSTOMER
                 events = self.event_repo.get_recent_events(customer.id, days=90)
                 
-                # 🔥 CALCULATE HEALTH SCORE
                 health_score = self.calculator.calculate_health_score(customer, events)
                 
-                # 🔥 SAVE HEALTH SCORE
                 self.health_score_repo.save_health_score(health_score)
                 processed_count += 1
                 

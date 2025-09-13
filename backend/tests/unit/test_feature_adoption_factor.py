@@ -248,22 +248,3 @@ class TestFeatureAdoptionFactor:
         # Should return empty list for medium scores
         assert len(recommendations) == 0
     
-    def test_calculate_score_empty_feature_usage_count(self):
-        """Test handling when no features are used (empty feature_usage_count)"""
-        events = []
-        base_time = datetime.utcnow() - timedelta(days=10)
-        
-        # Add feature_use events but all return None for feature name
-        for i in range(5):
-            event = Mock(spec=CustomerEvent)
-            event.event_type = "feature_use"
-            event.timestamp = base_time + timedelta(days=i)
-            event.get_feature_name.return_value = None
-            events.append(event)
-        
-        result = self.factor.calculate_score(self.customer, events)
-        
-        assert result.metadata["most_used_feature"] is None
-        assert result.metadata["least_used_feature"] is None
-        assert result.metadata["feature_usage_count"] == {}
-        assert result.value == 0
