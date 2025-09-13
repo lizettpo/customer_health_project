@@ -5,6 +5,7 @@ import {
   getHealthStatusColor,
   formatHealthStatus,
 } from "../../utils/healthScore";
+import "./CustomersList.css";
 
 const CustomersList = ({ onCustomerSelect }) => {
   const [healthStatusFilter, setHealthStatusFilter] = useState("all");
@@ -18,14 +19,14 @@ const CustomersList = ({ onCustomerSelect }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Customers</h3>
+      <div className="customers-list-loading">
+        <div className="customers-list-header">
+          <h3 className="customers-list-title">Customers</h3>
         </div>
-        <div className="p-6">
-          <div className="animate-pulse space-y-4">
+        <div className="customers-list-skeleton">
+          <div className="skeleton-space">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              <div key={i} className="skeleton-item"></div>
             ))}
           </div>
         </div>
@@ -35,19 +36,19 @@ const CustomersList = ({ onCustomerSelect }) => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="text-red-600">Error loading customers: {error}</div>
+      <div className="customers-list-error">
+        <div className="customers-list-error-text">Error loading customers: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-900">Customers</h3>
+    <div className="customers-list">
+      <div className="customers-list-header">
+        <div className="customers-list-header-content">
+          <h3 className="customers-list-title">Customers</h3>
 
-          <div className="flex items-center space-x-3">
+          <div className="customers-list-filters">
             <select
               value={healthStatusFilter}
               onChange={(e) => {
@@ -104,31 +105,11 @@ const CustomersList = ({ onCustomerSelect }) => {
                 <div className="text-right">
                   {customer.health_score !== undefined ? (
                     <>
-                      <div
-                        className="text-2xl font-bold mb-1"
-                        style={{
-                          color: getHealthStatusColor(
-                            customer.health_status || "critical"
-                          ),
-                        }}
-                      >
+                      <div className={`health-score health-score--${customer.health_status || "critical"}`}>
                         {formatScore(customer.health_score)}
                       </div>
-                      <div
-                        className="text-sm font-medium px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor:
-                            getHealthStatusColor(
-                              customer.health_status || "critical"
-                            ) + "20",
-                          color: getHealthStatusColor(
-                            customer.health_status || "critical"
-                          ),
-                        }}
-                      >
-                        {formatHealthStatus(
-                          customer.health_status || "critical"
-                        )}
+                      <div className={`health-status-badge health-status-badge--${customer.health_status || "critical"}`}>
+                        {formatHealthStatus(customer.health_status || "critical")}
                       </div>
                     </>
                   ) : (

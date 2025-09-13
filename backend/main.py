@@ -216,10 +216,6 @@ async def get_dashboard_stats(health_service: HealthScoreService = Depends(get_h
         logger.error(f"Error getting dashboard stats: {e}")
         return JSONResponse(status_code=505, content={"success": False, "error": "Server error", "detail": {"Failed to get dashboard stats"}})
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return JSONResponse(content={"success": True, "data": {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}})
 
 async def recalculate_health_score(customer_id: int, db: Session):
     """Background task to recalculate health score"""

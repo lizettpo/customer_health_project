@@ -7,6 +7,7 @@ import {
   getHealthScoreColor,
   formatHealthStatus,
 } from "../../utils/healthScore";
+import "./CustomerHealthDetail.css";
 
 const CustomerHealthDetail = ({ customerId }) => {
   const [showActivityForm, setShowActivityForm] = useState(false);
@@ -23,19 +24,16 @@ const CustomerHealthDetail = ({ customerId }) => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow p-6 animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
+      <div className="health-detail-loading">
+        <div className="loading-summary-card">
+          <div className="loading-title"></div>
+          <div className="loading-content"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="loading-factors-grid">
           {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-lg shadow p-6 animate-pulse"
-            >
-              <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div className="h-16 bg-gray-200 rounded"></div>
+            <div key={i} className="loading-factor-card">
+              <div className="loading-factor-title"></div>
+              <div className="loading-factor-content"></div>
             </div>
           ))}
         </div>
@@ -45,18 +43,13 @@ const CustomerHealthDetail = ({ customerId }) => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-lg font-semibold text-red-800">
-              Error Loading Health Score
-            </h3>
-            <p className="text-red-600 mt-1">{error}</p>
+      <div className="health-detail-error">
+        <div className="error-content">
+          <div className="error-info">
+            <h3>Error Loading Health Score</h3>
+            <p>{error}</p>
           </div>
-          <button
-            onClick={refetch}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-          >
+          <button onClick={refetch} className="retry-btn">
             Retry
           </button>
         </div>
@@ -66,8 +59,8 @@ const CustomerHealthDetail = ({ customerId }) => {
 
   if (!healthScore) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-        <p className="text-gray-600">
+      <div className="no-data-card">
+        <p className="no-data-text">
           No health score data available for this customer.
         </p>
       </div>
@@ -152,53 +145,56 @@ const CustomerHealthDetail = ({ customerId }) => {
     ),
   };
 
+  const getHealthStatusClass = (score) => {
+    if (score >= 80) return "healthy";
+    if (score >= 60) return "at-risk";
+    return "critical";
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="customer-health-detail">
       {/* Overall Health Score Summary */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {healthScore.customer_name}
-            </h2>
-            <p className="text-gray-600">
-              Last calculated: {formatDate(healthScore.calculated_at)}
-            </p>
+      <div className="health-summary-card">
+        <div className="health-summary-header">
+          <div className="customer-info">
+            <h2>{healthScore.customer_name}</h2>
+            <p>Last calculated: {formatDate(healthScore.calculated_at)}</p>
           </div>
 
-          <div className="text-right">
+          <div className="health-score-display">
             <div
-              className="text-4xl font-bold mb-2"
-              style={{ color: getHealthScoreColor(healthScore.overall_score) }}
+              className={`overall-score overall-score--${getHealthStatusClass(
+                healthScore.overall_score
+              )}`}
             >
               {formatScore(healthScore.overall_score)}
             </div>
             <div
-              className="inline-block px-3 py-1 rounded-full text-sm font-medium"
-              style={{
-                backgroundColor:
-                  getHealthScoreColor(healthScore.overall_score) + "20",
-                color: getHealthScoreColor(healthScore.overall_score),
-              }}
+              className={`health-status-badge health-status-badge--${getHealthStatusClass(
+                healthScore.overall_score
+              )}`}
             >
               {formatHealthStatus(healthScore.status)}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-600">
+        <div className="health-summary-footer">
+          <div className="customer-segment">
             Customer Segment:{" "}
-            <span className="font-medium">
-              {healthScore.data_summary.customer_segment}
-            </span>
+            <span>{healthScore.data_summary.customer_segment}</span>
           </div>
           <button
             onClick={() => setShowActivityForm(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+            className="record-activity-btn"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             Record Activity
           </button>
@@ -213,40 +209,10 @@ const CustomerHealthDetail = ({ customerId }) => {
           onClose={() => setShowActivityForm(false)}
         />
       )}
-
-      {/* Data Summary */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Data Summary
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <div className="text-sm text-gray-600">Events Analyzed</div>
-            <div className="text-2xl font-bold text-blue-600">
-              {formatNumber(healthScore.data_summary.events_analyzed)}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">History Points</div>
-            <div className="text-2xl font-bold text-green-600">
-              {formatNumber(healthScore.data_summary.history_points)}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">Customer Segment</div>
-            <div className="text-2xl font-bold text-purple-600">
-              {healthScore.data_summary.customer_segment}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Health Factors */}
-      <div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">
-          Health Factors
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="health-factors-section">
+        <h3>Health Factors</h3>
+        <div className="health-factors-grid">
           {Object.entries(healthScore.factors).map(([key, factor]) => (
             <HealthFactorCard
               key={key}
@@ -262,15 +228,13 @@ const CustomerHealthDetail = ({ customerId }) => {
 
       {/* Recommendations */}
       {healthScore.recommendations.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Recommendations
-          </h3>
-          <ul className="space-y-2">
+        <div className="recommendations-card">
+          <h3 className="recommendations-title">Recommendations</h3>
+          <ul className="recommendations-list">
             {healthScore.recommendations.map((recommendation, index) => (
-              <li key={index} className="flex items-start">
+              <li key={index} className="recommendation-item">
                 <svg
-                  className="w-5 h-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0"
+                  className="recommendation-icon"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -280,13 +244,12 @@ const CustomerHealthDetail = ({ customerId }) => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="text-gray-700">{recommendation}</span>
+                <span className="recommendation-text">{recommendation}</span>
               </li>
             ))}
           </ul>
         </div>
       )}
-
     </div>
   );
 };

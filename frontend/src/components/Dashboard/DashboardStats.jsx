@@ -6,17 +6,18 @@ import {
   formatDate,
 } from "../../utils/formatters";
 import { getHealthStatusColor } from "../../utils/healthScore";
+import "./DashboardStats.css";
 
 const DashboardStats = () => {
   const { stats, loading, error, refetch } = useDashboardStats();
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="dashboard-stats-loading">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+          <div key={i} className="stat-card-skeleton">
+            <div className="skeleton-title"></div>
+            <div className="skeleton-value"></div>
           </div>
         ))}
       </div>
@@ -25,8 +26,8 @@ const DashboardStats = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-        <p className="text-red-600">Error loading dashboard stats: {error}</p>
+      <div className="dashboard-stats-error">
+        <p className="dashboard-stats-error-text">Error loading dashboard stats: {error}</p>
       </div>
     );
   }
@@ -37,46 +38,40 @@ const DashboardStats = () => {
     {
       title: "Total Customers",
       value: formatNumber(stats.total_customers),
-      color: "#3B82F6",
+      cssClass: "total",
     },
     {
       title: "Healthy",
       value: `${formatNumber(stats.healthy_customers)} (${formatPercentage(
         stats.distribution.healthy_percent
       )})`,
-      color: getHealthStatusColor("healthy"),
+      cssClass: "healthy",
     },
     {
       title: "At Risk",
       value: `${formatNumber(stats.at_risk_customers)} (${formatPercentage(
         stats.distribution.at_risk_percent
       )})`,
-      color: getHealthStatusColor("at_risk"),
+      cssClass: "at-risk",
     },
     {
       title: "Critical",
       value: `${formatNumber(stats.critical_customers)} (${formatPercentage(
         stats.distribution.critical_percent
       )})`,
-      color: getHealthStatusColor("critical"),
+      cssClass: "critical",
     },
   ];
 
   return (
-    <div className="mb-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div className="dashboard-stats">
+      <div className="dashboard-stats-grid">
         {statCards.map((card, index) => (
-          <div key={index} className="bg-white rounded-lg shadow p-6">
-            <div
-              className="text-sm font-medium text-gray-600 mb-2"
-              style={{
-                borderLeft: `4px solid ${card.color}`,
-                paddingLeft: "8px",
-              }}
-            >
+          <div key={index} className="stat-card">
+            <div className={`stat-card-title stat-card-title--${card.cssClass}`}>
               {card.title}
             </div>
-            <div className="text-2xl font-bold" style={{ color: card.color }}>
+            <div className={`stat-card-value stat-card-value--${card.cssClass}`}>
               {card.value}
             </div>
           </div>

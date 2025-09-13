@@ -1,0 +1,106 @@
+.health-factor-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  padding: 1.5rem;
+}
+
+.factor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.factor-title-section {
+  display: flex;
+  align-items: center;
+}
+
+.factor-icon {
+  margin-right: 0.75rem;
+  color: #6b7280;
+}
+
+.factor-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.factor-score {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.factor-score--healthy {
+  color: #10B981;
+}
+
+.factor-score--at-risk {
+  color: #F59E0B;
+}
+
+.factor-score--critical {
+  color: #EF4444;
+}
+
+.factor-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.factor-value-section {
+  /* Base styles already included in .factor-content gap */
+}
+
+.factor-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.factor-value {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.factor-assessment-section {
+  /* Base styles already included in .factor-content gap */
+}
+
+.factor-description {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.factor-progress-section {
+  margin-top: 1rem;
+}
+
+.factor-progress-track {
+  width: 100%;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  height: 0.5rem;
+}
+
+.factor-progress-fill {
+  height: 0.5rem;
+  border-radius: 9999px;
+  transition: all 0.3s ease;
+}
+
+.factor-progress-fill--healthy {
+  background-color: #10B981;
+}
+
+.factor-progress-fill--at-risk {
+  background-color: #F59E0B;
+}
+
+.factor-progress-fill--critical {
+  background-color: #EF4444;
+}

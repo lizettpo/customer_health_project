@@ -1,53 +1,52 @@
 import React from 'react';
 import { formatScore } from '../../utils/formatters';
 import { getHealthScoreColor } from '../../utils/healthScore';
+import './HealthFactorCard.css';
 
 
 const HealthFactorCard = ({ title, factor, icon }) => {
-  const scoreColor = getHealthScoreColor(factor.score);
+  const getHealthStatusClass = (score) => {
+    if (score >= 80) return "healthy";
+    if (score >= 60) return "at-risk";
+    return "critical";
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
+    <div className="health-factor-card">
+      <div className="factor-header">
+        <div className="factor-title-section">
           {icon && (
-            <div className="mr-3 text-gray-500">
+            <div className="factor-icon">
               {icon}
             </div>
           )}
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="factor-title">{title}</h3>
         </div>
-        <div 
-          className="text-2xl font-bold"
-          style={{ color: scoreColor }}
-        >
+        <div className={`factor-score factor-score--${getHealthStatusClass(factor.score)}`}>
           {formatScore(factor.score)}
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <div className="text-sm text-gray-600 mb-1">Current Value</div>
-          <div className="text-lg font-medium text-gray-900">
+      <div className="factor-content">
+        <div className="factor-value-section">
+          <div className="factor-label">Current Value</div>
+          <div className="factor-value">
             {factor.value.toLocaleString()}
           </div>
         </div>
 
-        <div>
-          <div className="text-sm text-gray-600 mb-1">Assessment</div>
-          <div className="text-sm text-gray-700">
+        <div className="factor-assessment-section">
+          <div className="factor-label">Assessment</div>
+          <div className="factor-description">
             {factor.description}
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="factor-progress-section">
+          <div className="factor-progress-track">
             <div
-              className="h-2 rounded-full transition-all duration-300"
-              style={{
-                width: `${factor.score}%`,
-                backgroundColor: scoreColor,
-              }}
+              className={`factor-progress-fill factor-progress-fill--${getHealthStatusClass(factor.score)}`}
+              style={{ width: `${factor.score}%` }}
             />
           </div>
         </div>
