@@ -12,13 +12,32 @@ from services.health_score_service import HealthScoreService
 from domain.exceptions import CustomerNotFoundError, DomainError, InvalidEventDataError
 from schemas import CustomerListResponse, HealthScoreDetailResponse, CustomerEventCreate
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with file output
+import os
+from logging.handlers import RotatingFileHandler
+
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(logs_dir, exist_ok=True)
+
+# Configure logging with both file and console output
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        # File handler with rotation
+        RotatingFileHandler(
+            os.path.join(logs_dir, 'app.log'),
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=5
+        ),
+        # Console handler
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # Create database tables (skip during testing)
-import os
-import os
 import time
 
 app = FastAPI(
@@ -120,28 +139,33 @@ async def get_customers(
     customer_service: CustomerService = Depends(get_customer_service)
 ):
     """Get all customers with their health scores"""
+    logger.info(f"Fetching customers with health_status filter: {health_status}")
     try:
         customers = customer_service.get_customers_with_health_scores(
             health_status=health_status
         )
+        logger.info(f"Successfully fetched {len(customers)} customers")
         return JSONResponse(content={"success": True, "data": customers})
     except Exception as e:
-        logger.error(f"Error fetching customers: {e}")
+        logger.error(f"Error fetching customers: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to fetch customers"})
 
 @app.get("/api/customers/{customer_id}/health", response_model=HealthScoreDetailResponse)
 async def get_customer_health_detail(
-    customer_id: int, 
+    customer_id: int,
     health_service: HealthScoreService = Depends(get_health_service)
 ):
     """Get detailed health breakdown for a customer"""
+    logger.info(f"Fetching health detail for customer {customer_id}")
     try:
         health_detail = health_service.get_customer_health_detail(customer_id)
+        logger.info(f"Successfully calculated health score for customer {customer_id}: {health_detail.get('overall_score', 'N/A')}")
         return JSONResponse(content={"success": True, "data": health_detail})
     except CustomerNotFoundError:
+        logger.warning(f"Customer {customer_id} not found")
         return JSONResponse(status_code=404, content={"success": False, "error": "Customer not found", "detail": "Customer not found"})
     except Exception as e:
-        logger.error(f"Error getting health detail: {e}")
+        logger.error(f"Error getting health detail for customer {customer_id}: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to get health detail"})
 
 @app.post("/api/customers/{customer_id}/events")
@@ -153,24 +177,24 @@ async def record_customer_event(
 ):
     """
     Record a customer activity event.
-    
+
     This endpoint records various types of customer events that affect health scoring,
     such as API calls, logins, payments, feature usage, and support tickets.
-    
+
     Path Parameters:
         customer_id (int): Unique identifier of the customer
-        
+
     Request Body:
         event (CustomerEventCreate): Event data containing:
             - event_type: Type of event ('api_call', 'login', 'payment', 'feature_use', 'support_ticket')
             - event_data: Event-specific data dictionary (optional)
             - timestamp: Event timestamp (optional, defaults to current time)
-            
+
     Returns:
         200: Event recorded successfully with confirmation data
         404: Customer not found
         500: Server error during event recording
-        
+
     Example:
         POST /api/customers/123/events
         {
@@ -182,6 +206,7 @@ async def record_customer_event(
             }
         }
     """
+    logger.info(f"Recording {event.event_type} event for customer {customer_id}")
     try:
         customer_service = CustomerService(db)
         result = customer_service.record_event(
@@ -193,25 +218,26 @@ async def record_customer_event(
 
         # Skip background health score recalculation to avoid SQLite lock contention
         # Health scores are calculated on-demand when requested
-
+        logger.info(f"Successfully recorded {event.event_type} event for customer {customer_id}")
         return JSONResponse(content={"success": True, "data": result, "message": "Event recorded successfully"})
     except InvalidEventDataError as e:
-        logger.warning(f"Invalid event data: {e}")
+        logger.warning(f"Invalid event data for customer {customer_id}: {e}")
         return JSONResponse(status_code=400, content={"success": False, "error": "Invalid event data", "detail": str(e.message)})
     except CustomerNotFoundError:
+        logger.warning(f"Attempted to record event for non-existent customer {customer_id}")
         return JSONResponse(status_code=404, content={"success": False, "error": "Customer not found", "detail": "Customer not found"})
     except Exception as e:
-        logger.error(f"Error recording event: {e}")
+        logger.error(f"Error recording event for customer {customer_id}: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to record event"})
 
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats(health_service: HealthScoreService = Depends(get_health_service)):
     """
     Get dashboard statistics.
-    
+
     Retrieves aggregated statistics for the customer health dashboard,
     including customer counts by health status and distribution percentages.
-    
+
     Returns:
         200: Dashboard statistics containing:
             - total_customers: Total number of customers
@@ -221,7 +247,7 @@ async def get_dashboard_stats(health_service: HealthScoreService = Depends(get_h
             - distribution: Percentage breakdown by status
             - last_updated: Timestamp of data retrieval
         500: Server error during statistics retrieval
-        
+
     Example Response:
         {
             "success": true,
@@ -239,12 +265,14 @@ async def get_dashboard_stats(health_service: HealthScoreService = Depends(get_h
             }
         }
     """
+    logger.info("Fetching dashboard statistics")
     try:
         stats = health_service.get_dashboard_stats()
+        logger.info(f"Successfully generated dashboard stats: {stats.get('total_customers', 0)} total customers")
         return JSONResponse(content={"success": True, "data": stats})
     except Exception as e:
-        logger.error(f"Error getting dashboard stats: {e}")
-        return JSONResponse(status_code=505, content={"success": False, "error": "Server error", "detail": {"Failed to get dashboard stats"}})
+        logger.error(f"Error getting dashboard stats: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"success": False, "error": "Server error", "detail": "Failed to get dashboard stats"})
 
 
 async def recalculate_health_score(customer_id: int, db: Session):

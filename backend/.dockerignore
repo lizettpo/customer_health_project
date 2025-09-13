@@ -1,0 +1,51 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation and tests (for production builds)
+README.md
+*.md
+tests/
+test_*.py
+*_test.py
+
+# Database files (will be created in container)
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Logs
+*.log
+logs/
+
+# Coverage reports
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
