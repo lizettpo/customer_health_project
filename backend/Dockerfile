@@ -2,20 +2,27 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies with optimization
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    postgresql-client \
+    sqlite3 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Upgrade pip and install wheel for faster builds
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies with optimizations
+RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
 # Copy application code
 COPY . .
+
+# Create directories for SQLite
+RUN mkdir -p /app/data && chmod 755 /app/data
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app

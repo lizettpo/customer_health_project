@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 from datetime import datetime
 
 from domain.controllers.customer_controller import CustomerController
-from domain.exceptions import CustomerNotFoundError
+from domain.exceptions import CustomerNotFoundError, InvalidEventDataError
 
 
 class TestCustomerController:
@@ -144,11 +144,12 @@ class TestCustomerController:
     def test_record_customer_event_customer_not_found(self):
         """Test event recording with non-existent customer"""
         self.controller.customer_repo.get_by_id.return_value = None
-        
+
         with pytest.raises(CustomerNotFoundError):
             self.controller.record_customer_event(
                 customer_id=999,
-                event_type="api_call"
+                event_type="api_call",
+                event_data={"endpoint": "/test"}  # Valid data to pass validation
             )
     
     def test_get_customer_with_events_success(self):
@@ -185,4 +186,88 @@ class TestCustomerController:
         
         assert result == 42
         self.controller.customer_repo.count.assert_called_once()
+
+    def test_validate_event_data_api_call_valid(self):
+        """Test validation passes for valid API call event"""
+        # Should not raise exception
+        self.controller._validate_event_data("api_call", {"endpoint": "/api/test"})
+
+    def test_validate_event_data_api_call_missing_endpoint(self):
+        """Test validation fails when API call missing endpoint"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("api_call", {})
+
+    def test_validate_event_data_api_call_empty_endpoint(self):
+        """Test validation fails when API call has empty endpoint"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("api_call", {"endpoint": ""})
+
+    def test_validate_event_data_api_call_whitespace_endpoint(self):
+        """Test validation fails when API call has whitespace-only endpoint"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("api_call", {"endpoint": "   "})
+
+    def test_validate_event_data_payment_valid(self):
+        """Test validation passes for valid payment event"""
+        self.controller._validate_event_data("payment", {"amount": 100.50})
+
+    def test_validate_event_data_payment_missing_amount(self):
+        """Test validation fails when payment missing amount"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("payment", {})
+
+    def test_validate_event_data_payment_zero_amount(self):
+        """Test validation fails when payment amount is zero"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("payment", {"amount": 0})
+
+    def test_validate_event_data_payment_negative_amount(self):
+        """Test validation fails when payment amount is negative"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("payment", {"amount": -50})
+
+    def test_validate_event_data_payment_invalid_amount(self):
+        """Test validation fails when payment amount is not a number"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("payment", {"amount": "invalid"})
+
+    def test_validate_event_data_feature_use_valid(self):
+        """Test validation passes for valid feature use event"""
+        self.controller._validate_event_data("feature_use", {"feature_name": "dashboard"})
+
+    def test_validate_event_data_feature_use_missing_feature_name(self):
+        """Test validation fails when feature use missing feature_name"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("feature_use", {})
+
+    def test_validate_event_data_login_valid(self):
+        """Test validation passes for valid login event"""
+        self.controller._validate_event_data("login", {"ip_address": "192.168.1.1"})
+
+    def test_validate_event_data_login_missing_ip_address(self):
+        """Test validation fails when login missing ip_address"""
+        with pytest.raises(InvalidEventDataError):
+            self.controller._validate_event_data("login", {})
+
+    def test_validate_event_data_support_ticket_valid(self):
+        """Test validation passes for support ticket event (no required fields)"""
+        self.controller._validate_event_data("support_ticket", {})
+        self.controller._validate_event_data("support_ticket", {"priority": "high"})
+
+    def test_validate_event_data_unknown_event_type(self):
+        """Test validation passes for unknown event types (no validation)"""
+        self.controller._validate_event_data("unknown_type", {})
+
+    def test_record_customer_event_with_validation_failure(self):
+        """Test event recording fails validation before customer lookup"""
+        # Should fail validation before even checking customer exists
+        with pytest.raises(InvalidEventDataError):
+            self.controller.record_customer_event(
+                customer_id=1,
+                event_type="api_call",
+                event_data={}
+            )
+
+        # Customer lookup should not have been called
+        self.controller.customer_repo.get_by_id.assert_not_called()
     

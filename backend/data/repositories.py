@@ -1,40 +1,111 @@
 """
 Data Layer - Repository Implementations
-Database operations and data access
+
+This module implements the Repository pattern for data access operations in the
+Customer Health Scoring System. Repositories provide a clean abstraction layer
+between domain logic and database operations, handling the conversion between
+domain entities and database models.
+
+Repository Pattern Benefits:
+- Encapsulates database query logic and complexity
+- Provides domain-focused interface for data operations
+- Enables easy testing with mock repositories
+- Centralizes database access patterns and optimizations
+- Maintains separation between domain and infrastructure concerns
+
+Data Access Operations:
+- Customer CRUD operations and filtering
+- Customer event recording and retrieval
+- Health score persistence and calculation storage
+- Dashboard statistics aggregation and reporting
+
+Database Integration:
+- SQLAlchemy ORM for database abstraction
+- Automatic model-to-entity conversion
+- Query optimization for health score calculations
+- Transaction management and error handling
+
+Usage:
+    from data.repositories import CustomerRepository, HealthScoreRepository
+
+    customer_repo = CustomerRepository(db_session)
+    customers = customer_repo.get_all()
+    customer = customer_repo.get_by_id(customer_id)
+
+Author: Customer Health Team
+Architecture Pattern: Repository Pattern
+Layer: Data Access Layer (Clean Architecture)
 """
 
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from typing import List, Optional, Dict
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, desc, and_, or_
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
+import logging
 
 from data.models import Customer as CustomerModel, CustomerEvent as CustomerEventModel, HealthScore as HealthScoreModel
 from domain.models import Customer, CustomerEvent, HealthScore, FactorScore
+from domain.exceptions import CustomerNotFoundError, DataAccessError
+
+logger = logging.getLogger(__name__)
 
 
 class CustomerRepository:
-    """Repository for customer data operations"""
+    """
+    Repository for customer data operations.
+    
+    Handles all database operations related to customers, providing a clean
+    interface between the domain layer and the database. Converts between
+    database models and domain entities.
+    """
     
     def __init__(self, db: Session):
+        """
+        Initialize customer repository.
+        
+        Args:
+            db: SQLAlchemy database session
+        """
         self.db = db
     
     def get_by_id(self, customer_id: int) -> Optional[Customer]:
-        """Get customer by ID"""
+        """
+        Get customer by ID.
+        
+        Args:
+            customer_id: Unique customer identifier
+            
+        Returns:
+            Optional[Customer]: Customer domain entity if found, None otherwise
+        """
         db_customer = self.db.query(CustomerModel).filter(CustomerModel.id == customer_id).first()
         if not db_customer:
             return None
         return self._to_domain_model(db_customer)
     
     def get_all(self) -> List[Customer]:
-        """Get all customers with pagination"""
-        query = self.db.query(CustomerModel)
-     
+        """
+        Get all customers.
         
+        Returns:
+            List[Customer]: List of all customer domain entities
+        """
+        query = self.db.query(CustomerModel)
         db_customers = query.all()
         return [self._to_domain_model(customer) for customer in db_customers]
     
     def get_by_health_status(self, status: str) -> List[Customer]:
-        """Get customers by health status"""
+        """
+        Get customers by health status.
+        
+        Retrieves customers whose latest health score has the specified status.
+        
+        Args:
+            status: Health status to filter by ('healthy', 'at_risk', 'critical')
+            
+        Returns:
+            List[Customer]: List of customer domain entities with matching health status
+        """
         # Get health scores by status (one per customer)
         health_scores = self.db.query(HealthScoreModel).filter(
             HealthScoreModel.status == status
