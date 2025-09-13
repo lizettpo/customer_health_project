@@ -7,20 +7,49 @@ from enum import Enum
 
 
 class DomainError(Exception):
-    """Base exception for all domain errors"""
+    """
+    Base exception for all domain errors.
+    
+    This is the base class for all domain-specific exceptions in the system.
+    It provides structured error handling with error codes, messages, and additional details.
+    
+    Attributes:
+        error_code: Enum value representing the specific error type
+        message: Human-readable error message
+        details: Additional error context as a dictionary
+    """
     
     def __init__(self, error_code, message: str = None, details: dict = None):
+        """
+        Initialize domain error.
+        
+        Args:
+            error_code: Enum value from one of the error code classes
+            message: Optional custom error message. If None, uses error_code.value
+            details: Optional dictionary with additional error context
+        """
         self.error_code = error_code
         self.message = message or error_code.value
         self.details = details or {}
         super().__init__(self.message)
     
     def __str__(self):
+        """
+        String representation of the error.
+        
+        Returns:
+            str: Formatted error string with error code name and message
+        """
         return f"[{self.error_code.name}] {self.message}"
 
 
 class CustomerErrorCode(Enum):
-    """Customer-related error codes"""
+    """
+    Customer-related error codes.
+    
+    These error codes are used when customer operations fail due to various reasons
+    such as validation, access control, or data integrity issues.
+    """
     CUSTOMER_NOT_FOUND = "Customer not found"
     INVALID_CUSTOMER_DATA = "Invalid customer data provided"
     CUSTOMER_EMAIL_EXISTS = "Customer email already exists"
@@ -68,9 +97,21 @@ class DataErrorCode(Enum):
 
 # Specific Exception Classes using the enums
 class CustomerNotFoundError(DomainError):
-    """Raised when a customer is not found"""
+    """
+    Raised when a customer is not found.
+    
+    This exception is typically raised during database queries when attempting
+    to retrieve a customer that doesn't exist in the system.
+    """
     
     def __init__(self, customer_id: int = None, message: str = None):
+        """
+        Initialize customer not found error.
+        
+        Args:
+            customer_id: The ID of the customer that was not found
+            message: Optional custom error message
+        """
         details = {"customer_id": customer_id} if customer_id else {}
         custom_message = message or f"Customer {customer_id} not found" if customer_id else None
         super().__init__(CustomerErrorCode.CUSTOMER_NOT_FOUND, custom_message, details)

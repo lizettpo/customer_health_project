@@ -20,21 +20,6 @@ logger = logging.getLogger(__name__)
 import os
 import os
 import time
-# if not os.getenv("TESTING"):
-#     max_retries = 5
-#     for attempt in range(max_retries):
-#         try:
-#             Base.metadata.create_all(bind=engine)
-#             logger.info("Database tables created successfully")
-#             break
-#         except Exception as e:
-#             if attempt < max_retries - 1:
-#                 logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
-#                 logger.info("Waiting for database to be ready...")
-#                 time.sleep(5)
-#             else:
-#                 logger.error(f"Failed to connect to database after {max_retries} attempts: {e}")
-#                 raise
 
 app = FastAPI(
     title="Customer Health Score API",
@@ -76,31 +61,6 @@ async def domain_error_handler(request, exc: DomainError):
     logger.error(f"Domain error: {exc}")
     return JSONResponse(status_code=400, content={"error": "Domain error", "detail": str(exc)})
 
-# @app.on_event("startup")
-# async def startup_event():
-#     """Initialize database with sample data"""
-#     # Skip sample data population during testing
-#     if os.getenv("TESTING"):
-#         logger.info("Skipping sample data population during testing")
-#         return
-        
-#     from sample_data import populate_sample_data
-    
-#     db = SessionLocal()
-#     try:
-#         from data.models import Customer
-#         customer_count = db.query(Customer).count()
-#         if customer_count == 0:
-#             logger.info("Populating database with sample data...")
-#             populate_sample_data(db)
-#             logger.info("Sample data populated successfully!")
-#         else:
-#             logger.info(f"Database already contains {customer_count} customers")
-#     except Exception as e:
-#         # Handle case where tables don't exist (e.g., during testing)
-#         logger.info(f"Skipping sample data population: {e}")
-#     finally:
-#         db.close()
 
 @app.on_event("startup")
 async def startup_event():
@@ -186,7 +146,37 @@ async def record_customer_event(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Record a customer activity event"""
+    """
+    Record a customer activity event.
+    
+    This endpoint records various types of customer events that affect health scoring,
+    such as API calls, logins, payments, feature usage, and support tickets.
+    
+    Path Parameters:
+        customer_id (int): Unique identifier of the customer
+        
+    Request Body:
+        event (CustomerEventCreate): Event data containing:
+            - event_type: Type of event ('api_call', 'login', 'payment', 'feature_use', 'support_ticket')
+            - event_data: Event-specific data dictionary (optional)
+            - timestamp: Event timestamp (optional, defaults to current time)
+            
+    Returns:
+        200: Event recorded successfully with confirmation data
+        404: Customer not found
+        500: Server error during event recording
+        
+    Example:
+        POST /api/customers/123/events
+        {
+            "event_type": "api_call",
+            "event_data": {
+                "endpoint": "/api/users",
+                "method": "GET",
+                "response_code": 200
+            }
+        }
+    """
     try:
         customer_service = CustomerService(db)
         result = customer_service.record_event(
@@ -208,7 +198,39 @@ async def record_customer_event(
 
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats(health_service: HealthScoreService = Depends(get_health_service)):
-    """Get dashboard statistics"""
+    """
+    Get dashboard statistics.
+    
+    Retrieves aggregated statistics for the customer health dashboard,
+    including customer counts by health status and distribution percentages.
+    
+    Returns:
+        200: Dashboard statistics containing:
+            - total_customers: Total number of customers
+            - healthy_customers: Count of customers with healthy status (75+)
+            - at_risk_customers: Count of customers at risk (50-74)
+            - critical_customers: Count of customers in critical state (<50)
+            - distribution: Percentage breakdown by status
+            - last_updated: Timestamp of data retrieval
+        500: Server error during statistics retrieval
+        
+    Example Response:
+        {
+            "success": true,
+            "data": {
+                "total_customers": 100,
+                "healthy_customers": 60,
+                "at_risk_customers": 30,
+                "critical_customers": 10,
+                "distribution": {
+                    "healthy_percent": 60.0,
+                    "at_risk_percent": 30.0,
+                    "critical_percent": 10.0
+                },
+                "last_updated": "2024-01-15T10:30:00Z"
+            }
+        }
+    """
     try:
         stats = health_service.get_dashboard_stats()
         return JSONResponse(content={"success": True, "data": stats})

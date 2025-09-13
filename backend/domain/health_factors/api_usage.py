@@ -11,22 +11,70 @@ from domain.health_factors.base_factor import HealthFactor
 
 
 class ApiUsageFactor(HealthFactor):
-    """API usage health factor - measures integration depth and automation adoption"""
+    """
+    API usage health factor - measures integration depth and automation adoption.
+    
+    This factor evaluates how well customers are utilizing the API to integrate
+    with their systems. Higher API usage typically indicates deeper integration,
+    automated workflows, and higher customer value realization.
+    
+    Scoring criteria:
+    - Enterprise customers expected: 1000+ API calls/month
+    - SMB customers expected: 500+ API calls/month  
+    - Startup customers expected: 200+ API calls/month
+    - Includes trend analysis and error rate considerations
+    """
     
     @property
     def name(self) -> str:
+        """
+        Returns the unique identifier for this factor.
+        
+        Returns:
+            str: 'api_usage'
+        """
         return "api_usage"
     
     @property
     def weight(self) -> float:
+        """
+        Returns the weight of this factor in overall health score calculation.
+        
+        Returns:
+            float: 0.15 (15% of total health score)
+        """
         return 0.15
     
     @property
     def description(self) -> str:
+        """
+        Returns a description of what this factor measures.
+        
+        Returns:
+            str: Description of API usage pattern analysis
+        """
         return "Measures integration depth through API usage patterns"
     
     def calculate_score(self, customer: Customer, events: List[CustomerEvent]) -> FactorScore:
-        """Calculate API usage score based on segment-specific expectations"""
+        """
+        Calculate API usage score based on segment-specific expectations.
+        
+        Analyzes API call frequency, trends, error rates, and usage patterns
+        to determine how well the customer is utilizing API integrations.
+        
+        Args:
+            customer: Customer entity with segment information
+            events: List of customer events (filtered to last 90 days)
+            
+        Returns:
+            FactorScore: Score (0-100) with metadata including:
+                - api_call_count: Total API calls in analysis period
+                - expected_calls: Expected calls based on customer segment
+                - error_rate: Percentage of failed API calls
+                - endpoints: Dictionary of endpoint usage
+                - trend: 'improving', 'declining', or 'stable'
+                - recent_calls: API calls in last 15 days
+        """
         
         # Filter API call events from last 30 days
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
@@ -102,7 +150,23 @@ class ApiUsageFactor(HealthFactor):
         )
     
     def generate_recommendations(self, score: FactorScore, customer: Customer) -> List[str]:
-        """Generate API usage recommendations"""
+        """
+        Generate API usage recommendations based on score and customer context.
+        
+        Provides actionable recommendations to improve API adoption and integration
+        depth based on current usage patterns and customer segment.
+        
+        Args:
+            score: FactorScore containing API usage metrics and metadata
+            customer: Customer entity for segment-specific recommendations
+            
+        Returns:
+            List[str]: Actionable recommendations such as:
+                - Technical consultation for low usage
+                - Developer onboarding for moderate usage
+                - Upselling opportunities for high usage
+                - Case study opportunities for excellent usage
+        """
         recommendations = []
         
         if score.score < 30:

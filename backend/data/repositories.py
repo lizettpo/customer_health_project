@@ -13,28 +13,61 @@ from domain.models import Customer, CustomerEvent, HealthScore, FactorScore
 
 
 class CustomerRepository:
-    """Repository for customer data operations"""
+    """
+    Repository for customer data operations.
+    
+    Handles all database operations related to customers, providing a clean
+    interface between the domain layer and the database. Converts between
+    database models and domain entities.
+    """
     
     def __init__(self, db: Session):
+        """
+        Initialize customer repository.
+        
+        Args:
+            db: SQLAlchemy database session
+        """
         self.db = db
     
     def get_by_id(self, customer_id: int) -> Optional[Customer]:
-        """Get customer by ID"""
+        """
+        Get customer by ID.
+        
+        Args:
+            customer_id: Unique customer identifier
+            
+        Returns:
+            Optional[Customer]: Customer domain entity if found, None otherwise
+        """
         db_customer = self.db.query(CustomerModel).filter(CustomerModel.id == customer_id).first()
         if not db_customer:
             return None
         return self._to_domain_model(db_customer)
     
     def get_all(self) -> List[Customer]:
-        """Get all customers with pagination"""
-        query = self.db.query(CustomerModel)
-     
+        """
+        Get all customers.
         
+        Returns:
+            List[Customer]: List of all customer domain entities
+        """
+        query = self.db.query(CustomerModel)
         db_customers = query.all()
         return [self._to_domain_model(customer) for customer in db_customers]
     
     def get_by_health_status(self, status: str) -> List[Customer]:
-        """Get customers by health status"""
+        """
+        Get customers by health status.
+        
+        Retrieves customers whose latest health score has the specified status.
+        
+        Args:
+            status: Health status to filter by ('healthy', 'at_risk', 'critical')
+            
+        Returns:
+            List[Customer]: List of customer domain entities with matching health status
+        """
         # Get health scores by status (one per customer)
         health_scores = self.db.query(HealthScoreModel).filter(
             HealthScoreModel.status == status
