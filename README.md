@@ -1,6 +1,6 @@
 # Customer Health Scoring System
 
-A comprehensive customer health monitoring and scoring platform built with FastAPI and React, featuring real-time health analytics and configurable scoring algorithms.
+A comprehensive customer health monitoring and scoring platform built with FastAPI and React, featuring real-time health analytics, configurable scoring algorithms, and high-performance in-memory data serving for instant response times.
 
 ## 🚀 Quick Start
 
@@ -144,6 +144,14 @@ npm test -- --updateSnapshot
 - **Event Tracking**: Record and analyze customer activities (API usage, logins, payments, etc.)
 - **Configurable Factors**: Modular health scoring system with pluggable factors
 - **Customer Segmentation**: Different scoring expectations based on customer tiers
+
+### Performance Features
+
+- **In-Memory Data Serving**: All customer data loaded at startup for instant API responses
+- **Sub-millisecond Response Times**: GET endpoints serve data directly from memory
+- **Real-time Updates**: Event recording updates both database and memory cache immediately
+- **High Concurrency**: Thread-safe memory store with concurrent access protection
+- **Zero Query Latency**: No database queries for read operations after startup
 
 ### Health Factors
 

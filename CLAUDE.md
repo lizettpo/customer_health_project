@@ -20,6 +20,7 @@ The core business logic, domain models, and health scoring algorithms represent 
 - **Run tests**: `cd backend && python run_tests.py`
 - **Install dependencies**: `cd backend && pip install -r requirements.txt`
 - **Database**: Uses SQLite with auto-create tables on startup
+- **Performance**: All data loaded into memory at startup for instant API responses
 - **Logging**: File logging with rotation enabled in `backend/logs/`
 
 ### Testing
@@ -181,16 +182,23 @@ customer_health_project/
 - **Auto-creation**: Tables created automatically on startup
 - **Sample data**: Populated automatically on first run
 
+### Memory Store Architecture
+- **Eager Loading**: All customer data, health scores, and events loaded into memory at startup
+- **Instant Responses**: API endpoints serve data from memory for sub-millisecond response times
+- **Real-time Updates**: Event recording updates both database and memory cache immediately
+- **Thread Safety**: Memory store uses locks for concurrent access protection
+- **Auto-sync**: Database and memory store kept in perfect sync
+
 ### API Endpoints
 - `GET /` - Basic API information
-- `GET /api/customers` - List customers with health scores
-- `GET /api/customers/{id}/health` - Detailed health breakdown
-- `POST /api/customers/{id}/events` - Record customer events
-- `GET /api/dashboard/stats` - Dashboard statistics
+- `GET /api/customers` - List customers with health scores (served from memory)
+- `GET /api/customers/{id}/health` - Detailed health breakdown (served from memory)
+- `POST /api/customers/{id}/events` - Record customer events (updates memory + database)
+- `GET /api/dashboard/stats` - Dashboard statistics (served from memory)
 - `GET /api/dashboard` - Serve React frontend
 
 ### Health Score Calculation
-Health scores are calculated using weighted factors and stored in the database. The system calculates scores on-demand when requested. Each factor contributes to an overall score (0-100) with status classification (healthy/at_risk/critical).
+Health scores are calculated using weighted factors and stored in both database and memory. All scores are pre-calculated and loaded into memory at startup for instant access. When events are recorded, health scores are recalculated immediately and updated in both storage layers. Each factor contributes to an overall score (0-100) with status classification (healthy/at_risk/critical).
 
 ## Development Guidelines
 
