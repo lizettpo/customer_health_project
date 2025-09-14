@@ -75,6 +75,7 @@ class MemoryStore:
             # 1. Load all customers
             customers = self._repos['customer'].get_all()
             self.customers = {c.id: c for c in customers}
+            logger.info(f"Loaded {len(customers)} customers from database")
 
             # 2. Load all events (last 90 days for each customer)
             self.events = {}
@@ -283,6 +284,7 @@ class MemoryStore:
         if not self._repos:
             raise RuntimeError("Database not set")
 
+        logger.info(f"Starting health score calculation for {len(self.customers)} customers")
         processed_count = 0
 
         with self._data_lock:
@@ -302,7 +304,7 @@ class MemoryStore:
                     processed_count += 1
 
                 except Exception as e:
-                    logger.error(f"Failed to recalculate health score for customer {customer_id}: {e}")
+                    logger.error(f"Failed to recalculate health score for customer {customer_id}: {e}", exc_info=True)
                     continue
 
         logger.info(f"Recalculated health scores for {processed_count} customers")

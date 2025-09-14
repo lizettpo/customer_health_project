@@ -251,6 +251,15 @@ async def startup_event():
         from domain.memory_store import memory_store
         memory_store.set_database(db)
         memory_store.load_all_data()
+
+        # 2f) Calculate initial health scores if missing (regardless of sample data)
+        if len(memory_store.health_scores) == 0 and len(memory_store.customers) > 0:
+            logger.info("🧮 No health scores found - calculating initial health scores...")
+            calculated_count = memory_store.recalculate_all_health_scores()
+            logger.info(f"✅ Calculated health scores for {calculated_count} customers")
+        else:
+            logger.info(f"✅ Found {len(memory_store.health_scores)} existing health scores")
+
         logger.info("✅ All data loaded into memory store for instant access!")
 
         logger.info("🎉 API startup completed successfully!")

@@ -21,8 +21,11 @@ RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create directories for SQLite
-RUN mkdir -p /app/data && chmod 755 /app/data
+# Set Python path to include current directory
+ENV PYTHONPATH=/app
+
+# Create directories for SQLite and logs
+RUN mkdir -p /app/data /app/logs && chmod 755 /app/data /app/logs
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
