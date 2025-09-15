@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from data.repositories import CustomerRepository, EventRepository, HealthScoreRepository
+# No repository imports needed - using memory store
 from domain.exceptions import CustomerNotFoundError, InvalidEventDataError
 
 
@@ -15,9 +15,8 @@ class CustomerController:
     """Controller that uses memory store for all operations"""
 
     def __init__(self, db: Session):
-        self.customer_repo = CustomerRepository(db)
-        self.event_repo = EventRepository(db)
-        self.health_score_repo = HealthScoreRepository(db)
+        # Keep db session for proper dependency injection pattern
+        self.db = db
 
         # Get global memory store instance
         from domain.memory_store import memory_store
@@ -34,21 +33,23 @@ class CustomerController:
     
     def get_customer_with_events(self, customer_id: int, days: int = 90) -> Dict[str, Any]:
         """
-        LOADS DATA ONCE: Load customer and all their events, coordinate in memory
+        Get customer and events from memory store for instant access
         """
-
-        loaded_customer = self.customer_repo.get_by_id(customer_id)
+        # Use memory store instead of direct DB calls
+        loaded_customer = self.memory_store.get_customer_by_id(customer_id)
         if not loaded_customer:
             raise CustomerNotFoundError(f"Customer {customer_id} not found")
 
-        loaded_events = self.event_repo.get_recent_events(customer_id, days)
+        # Get events from memory store as dictionaries
+        loaded_events_dict = self.memory_store.get_customer_events(customer_id, days)
 
+        # Group events by type for summary
         events_by_type = {}
-        for event in loaded_events:
-            event_type = event.event_type
+        for event_dict in loaded_events_dict:
+            event_type = event_dict["event_type"]
             if event_type not in events_by_type:
                 events_by_type[event_type] = []
-            events_by_type[event_type].append(event)
+            events_by_type[event_type].append(event_dict)
 
         return {
             "customer": {
@@ -59,12 +60,12 @@ class CustomerController:
                 "segment": loaded_customer.segment
             },
             "events_summary": {
-                "total_events": len(loaded_events),
+                "total_events": len(loaded_events_dict),
                 "events_by_type": {
                     event_type: len(events)
                     for event_type, events in events_by_type.items()
                 },
-                "latest_events": loaded_events[:5]  # Last 5 events
+                "latest_events": loaded_events_dict[:5]  # Last 5 events
             }
         }
     
@@ -99,9 +100,9 @@ class CustomerController:
     
     def get_customer_count(self) -> int:
         """
-        LOADS DATA: Get count (could cache this)
+        Get customer count from memory store
         """
-        return self.customer_repo.count()
+        return len(self.memory_store.customers)
     
     def get_customer_events(self, customer_id: int, days: int = 90) -> List[Dict[str, Any]]:
         """
