@@ -46,12 +46,15 @@ class TestApiUsageFactor:
             events.append(event)
         
         result = self.factor.calculate_score(self.customer, events)
-        
+
         assert isinstance(result, FactorScore)
-        assert result.score == 100.0  # Capped at 100
+        # Score should be reduced due to 10% error rate (120 errors out of 1200 calls)
+        assert result.score == 92.0  # Base 100 * (1 - error_penalty)
         assert result.value == 1200
         assert "1200 API calls" in result.description
+        assert "10.0% error rate" in result.description  # Should show error rate
         assert result.trend in ["improving", "declining", "stable"]
+        assert result.metadata["error_rate"] == 10.0
         assert "expected_calls" in result.metadata
         assert "endpoints" in result.metadata
         assert "error_rate" in result.metadata
@@ -207,9 +210,16 @@ class TestApiUsageFactor:
             events.append(event)
         
         result = self.factor.calculate_score(self.customer, events)
-        
+
         assert result.metadata["error_rate"] == 20.0  # 20/100 * 100 = 20%
         assert result.metadata["response_codes"]["400"] > 0
+
+        # Score should be significantly reduced due to high error rate
+        # Base score would be 10 (100 calls / 1000 expected * 100)
+        # With 20% error rate, score should be reduced
+        assert result.score < 10.0  # Should be less than base score
+        assert result.score > 0.0   # But not zero
+        assert "20.0% error rate" in result.description
         assert result.metadata["response_codes"]["401"] > 0
         assert result.metadata["response_codes"]["500"] > 0
     
@@ -253,5 +263,53 @@ class TestApiUsageFactor:
         
         assert len(recommendations) > 0
         assert any("integration case study" in rec.lower() for rec in recommendations)
-    
+
+    def test_generate_recommendations_high_error_rate(self):
+        """Test recommendations for high error rate"""
+        # Create a score with high error rate
+        score = FactorScore(
+            score=50.0,
+            value=500,
+            description="500 API calls in last 30 days",
+            metadata={"error_rate": 25.0}  # High error rate
+        )
+
+        recommendations = self.factor.generate_recommendations(score, self.customer)
+
+        assert len(recommendations) > 0
+        assert any("CRITICAL" in rec and "High API error rate" in rec for rec in recommendations)
+        assert any("technical support needed" in rec for rec in recommendations)
+
+    def test_generate_recommendations_moderate_error_rate(self):
+        """Test recommendations for moderate error rate"""
+        # Create a score with moderate error rate
+        score = FactorScore(
+            score=70.0,
+            value=800,
+            description="800 API calls in last 30 days",
+            metadata={"error_rate": 15.0}  # Moderate error rate
+        )
+
+        recommendations = self.factor.generate_recommendations(score, self.customer)
+
+        assert len(recommendations) > 0
+        assert any("Elevated API error rate" in rec for rec in recommendations)
+        assert any("debugging assistance" in rec for rec in recommendations)
+
+    def test_generate_recommendations_low_error_rate(self):
+        """Test recommendations for low error rate"""
+        # Create a score with low error rate
+        score = FactorScore(
+            score=85.0,
+            value=900,
+            description="900 API calls in last 30 days",
+            metadata={"error_rate": 7.0}  # Low error rate
+        )
+
+        recommendations = self.factor.generate_recommendations(score, self.customer)
+
+        assert len(recommendations) > 0
+        assert any("Monitor API error patterns" in rec for rec in recommendations)
+        assert any("optimization guidance" in rec for rec in recommendations)
+
   

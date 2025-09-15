@@ -105,31 +105,47 @@ class ApiUsageFactor(HealthFactor):
                 day = event.timestamp.date().isoformat()
                 daily_usage[day] = daily_usage.get(day, 0) + 1
         
-        # Calculate score based on customer segment expectations
+        # Calculate error rate first (needed for score calculation)
+        error_calls = (response_codes.get('400', 0) +
+                      response_codes.get('401', 0) +
+                      response_codes.get('403', 0) +
+                      response_codes.get('404', 0) +
+                      response_codes.get('500', 0) +
+                      response_codes.get('502', 0) +
+                      response_codes.get('503', 0))
+        error_rate = (error_calls / api_call_count * 100) if api_call_count > 0 else 0
+
+        # Calculate base score based on customer segment expectations
         expected_calls = customer.get_expected_api_calls()
-        score = min(100.0, (api_call_count / expected_calls) * 100) if expected_calls > 0 else 0
-        
+        base_score = min(100.0, (api_call_count / expected_calls) * 100) if expected_calls > 0 else 0
+
+        # Apply error rate penalty - reduce score based on error percentage
+        # Error rate penalty: 0% errors = no penalty, 50% errors = 50% score reduction, 100% errors = 75% score reduction
+        if error_rate > 0:
+            # Use logarithmic penalty to avoid being too harsh on small error rates
+            error_penalty = min(75, error_rate * 0.75 + (error_rate ** 2) * 0.005)
+            score = base_score * (1 - error_penalty / 100)
+        else:
+            score = base_score
+
+        # Ensure score doesn't go below 0
+        score = max(0.0, score)
+
         # Calculate trend
         fifteen_days_ago = datetime.utcnow() - timedelta(days=15)
         recent_15_days = [
-            event for event in api_events 
+            event for event in api_events
             if event.timestamp >= fifteen_days_ago
         ]
         recent_calls = len(recent_15_days)
         older_calls = api_call_count - recent_calls
-        
+
         if recent_calls > older_calls:
             trend = "improving"
         elif recent_calls < older_calls:
             trend = "declining"
         else:
             trend = "stable"
-        
-        # Calculate error rate
-        error_calls = (response_codes.get('400', 0) + 
-                      response_codes.get('401', 0) + 
-                      response_codes.get('500', 0))
-        error_rate = (error_calls / api_call_count * 100) if api_call_count > 0 else 0
         
         metadata = {
             "expected_calls": expected_calls,
@@ -141,10 +157,16 @@ class ApiUsageFactor(HealthFactor):
             "recent_calls": recent_calls
         }
         
+        # Create descriptive text including error rate impact
+        if error_rate > 0:
+            description = f"{api_call_count} API calls in last 30 days ({error_rate:.1f}% error rate)"
+        else:
+            description = f"{api_call_count} API calls in last 30 days (no errors)"
+
         return FactorScore(
             score=score,
             value=api_call_count,
-            description=f"{api_call_count} API calls in last 30 days",
+            description=description,
             trend=trend,
             metadata=metadata
         )
@@ -168,7 +190,18 @@ class ApiUsageFactor(HealthFactor):
                 - Case study opportunities for excellent usage
         """
         recommendations = []
-        
+        error_rate = score.metadata.get('error_rate', 0)
+
+        # Error-specific recommendations
+        if error_rate > 20:
+            recommendations.append("CRITICAL: High API error rate detected - immediate technical support needed")
+            recommendations.append("Review API integration and error handling implementation")
+        elif error_rate > 10:
+            recommendations.append("Elevated API error rate - provide debugging assistance")
+        elif error_rate > 5:
+            recommendations.append("Monitor API error patterns and offer optimization guidance")
+
+        # Volume-based recommendations
         if score.score < 30:
             recommendations.append("API adoption is very low - offer technical consultation")
             recommendations.append("Provide API documentation and integration examples")
@@ -178,5 +211,5 @@ class ApiUsageFactor(HealthFactor):
             recommendations.append("High API usage indicates success - consider upselling")
         elif score.score > 90:
             recommendations.append("Excellent API adoption - consider featuring as integration case study")
-        
+
         return recommendations
