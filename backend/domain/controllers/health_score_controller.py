@@ -40,46 +40,6 @@ class HealthScoreController:
         """
         return self.memory_store.get_dashboard_stats()
     
-    def bulk_calculate_health_scores(self, customer_ids: List[int]) -> Dict[str, Any]:
-        """
-        Bulk calculate health scores using memory store for multiple customers
-        """
-        calculation_results = []
-
-        with self.memory_store._data_lock:
-            for customer_id in customer_ids:
-                # Get customer from memory store
-                customer = self.memory_store.get_customer_by_id(customer_id)
-                if not customer:
-                    continue  # Skip customers not found
-
-                # Get events from memory store
-                events = self.memory_store.events.get(customer_id, [])
-
-                try:
-                    health_score = self.calculator.calculate_health_score(customer, events)
-
-                    # Save to database
-                    saved_score = self.health_score_repo.save_health_score(health_score)
-
-                    # Update memory store
-                    self.memory_store.health_scores[customer_id] = saved_score
-
-                    calculation_results.append({
-                        "customer_id": customer_id,
-                        "score": saved_score.score,
-                        "status": saved_score.status
-                    })
-                except Exception as e:
-                    # Log error but continue processing other customers
-                    continue
-
-        return {
-            "processed_customers": len(calculation_results),
-            "results": calculation_results,
-            "completed_at": datetime.utcnow()
-        }
-    
     def get_latest_health_score(self, customer_id: int):
         """
         Get latest health score from memory store
